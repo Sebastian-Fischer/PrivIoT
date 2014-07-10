@@ -2,6 +2,7 @@ package priviot.utils.pseudonymization;
 
 /**
  * Interface for all PseudonymGenerators.
+ * 
  * A PseudonymGenerator generates pseudonyms for a given string.
  */
 public interface PseudonymGenerator {

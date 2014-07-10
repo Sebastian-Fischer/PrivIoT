@@ -13,6 +13,15 @@ public class RDFData implements Serializable {
 	private String predicate = "";
 	private String object = "";
 	
+	public RDFData() {
+	}
+	
+	public RDFData(String subject, String predicate, String object) {
+		this.subject = subject;
+		this.predicate = predicate;
+		this.object = object;
+	}
+	
 	public String getSubject() {
 		return subject;
 	}
