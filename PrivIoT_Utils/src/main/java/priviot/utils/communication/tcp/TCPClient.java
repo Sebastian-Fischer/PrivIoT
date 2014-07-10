@@ -3,7 +3,10 @@ package priviot.utils.communication.tcp;
 import java.io.*;
 import java.net.UnknownHostException;
 
-public class Client implements Runnable {
+/**
+ * The TCPClient encapsulates the TCP communication.
+ */
+public class TCPClient implements Runnable {
 	
 	private java.net.Socket socket;
 	private boolean isConnected = false;
@@ -11,7 +14,7 @@ public class Client implements Runnable {
 	private boolean outputDebugMessages = false;
 	private boolean outputDebugConnections = false;
 	
-	public Client(String ip, int port) {
+	public TCPClient(String ip, int port) {
 		try {
 			socket = new java.net.Socket(ip, port);
 		} catch (UnknownHostException e) {
@@ -22,7 +25,7 @@ public class Client implements Runnable {
 			return;
 		}
 		
-		if (outputDebugConnections) System.out.println("Client: connected to " + socket.getRemoteSocketAddress());
+		if (outputDebugConnections) System.out.println("TCPClient: connected to " + socket.getRemoteSocketAddress());
 		
 		isConnected = true;
 	}
@@ -38,13 +41,13 @@ public class Client implements Runnable {
 	 * @return response
 	 * @throws IOException 
 	 */
-	protected byte[] sendMessage(byte[] message) throws IOException {
+	public byte[] sendMessage(byte[] message) throws IOException {
 		if (!isConnected) {
-			System.out.println("Client: Error in sendMessage(): not connected");
+			System.out.println("TCPClient: Error in sendMessage(): not connected");
 			return null;
 		}
 		
-		if (outputDebugMessages) System.out.println("Client: send message: '" + new String(message) + "'");
+		if (outputDebugMessages) System.out.println("TCPClient: send message: '" + new String(message) + "'");
 		
 		PrintWriter printWriter =
 		 	    new PrintWriter(
@@ -69,12 +72,12 @@ public class Client implements Runnable {
  	 		response[i] = (byte)(buffer[i]);
  	 	}
  	 	
- 	 	if (outputDebugMessages) System.out.println("Client: received response: '" + new String(response) + "'");
+ 	 	if (outputDebugMessages) System.out.println("TCPClient: received response: '" + new String(response) + "'");
  	 	
  	 	return response;
 	}
 	
-	protected void disconnect() {
+	public void disconnect() {
 		try {
 			Thread.sleep(10);
 		} catch (InterruptedException e1) {
@@ -89,7 +92,7 @@ public class Client implements Runnable {
 			return;
 		}
 		
-		if (outputDebugConnections) System.out.println("Client: connection closed to " + socket.getRemoteSocketAddress());
+		if (outputDebugConnections) System.out.println("TCPClient: connection closed to " + socket.getRemoteSocketAddress());
 		
 		isConnected = false;
 	}

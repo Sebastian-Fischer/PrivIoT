@@ -8,15 +8,22 @@ import priviot.data_origin.data.SimpleIntegerSensorData;
 import priviot.data_origin.sensor.SimpleIntegerSensor;
 import priviot.data_origin.service.TCPService;
 
+/**
+ * Controller, that combines the SimpleIntegerSensor with the TCPService.
+ */
 public class SimpleIntegerSensorTCPServiceController extends Controller {
 
+	/** URI of the sensor */
 	private static final String sensorURI = "sensor.de/sensor1";
+	/** frequency in which new values are published by the sensor in seconds */
 	private static final int updateFrequency = 3;
+	/** TCP port, the server of the TCPService is listen to. */
+	private static final int port = 12345;
 	
+	/** The TCPService that handles the communication with clients */
 	private TCPService tcpService;
 	
 	public SimpleIntegerSensorTCPServiceController() {
-		
 	}
 	
 	@Override
@@ -26,7 +33,9 @@ public class SimpleIntegerSensorTCPServiceController extends Controller {
 		
 		sensor = simpleIntegerSensor;
 		
-		tcpService = new TCPService();
+		tcpService = new TCPService(port);
+		
+		tcpService.startService();
 	}
 
 	@Override

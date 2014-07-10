@@ -2,27 +2,46 @@ package priviot.utils.communication.tcp;
 
 import java.io.*;
 
-public class Server implements Runnable {
+/**
+ * The TCPServer encapsulates the TCP communication.
+ * 
+ * A class that uses the TCPServer has to implement the interface TCPServerHandler.
+ * To register a TCPServerHandler, call setTCPServerHandler.
+ * To start the Server create a new thread with the TCPServer object as Runnable and start the thread.
+ */
+public class TCPServer implements Runnable {
 	
  	private java.net.ServerSocket serverSocket;
  	
  	private boolean outputDebugMessages = false;
  	private boolean outputDebugConnections = false;
+ 	
+ 	private TCPServerHandler tcpServerHandler;
 	
- 	public Server(int port) { 		
+ 	/**
+ 	 * Constructor
+ 	 * @param port Local TCP port to open the server
+ 	 */
+ 	public TCPServer(int port) { 		
  		try {
 			serverSocket = new java.net.ServerSocket(port);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
  		
- 		System.out.println("Server: opened Server at port " + port);
+ 		System.out.println("TCPServer: opened Server at port " + port);
  	}
  	
+ 	/** Sets the debug flags */
  	public void setDebug(boolean outputDebugMessages, boolean outputDebugConnections) {
 		this.outputDebugMessages = outputDebugMessages;
 		this.outputDebugConnections =  outputDebugConnections;
 	}
+ 	
+ 	/** Sets the handler for tcp messages */
+ 	public void setTCPServerHandler(TCPServerHandler tcpServerHandler) {
+ 		this.tcpServerHandler = tcpServerHandler;
+ 	}
  	
  	
  	private byte[] getMessage(java.net.Socket socket) throws IOException {
@@ -58,15 +77,6 @@ public class Server implements Runnable {
 	 	printWriter.flush();
  	}
  	
- 	/**
- 	 * Handles the incomming message and generates a response.
- 	 * @param message Incomming
- 	 * @return        Response
- 	 */
- 	protected byte[] handleMessage(byte[] message) {
- 		return null;
- 	}
- 	
  	public void setOutputDebugMessages(boolean value) {
 		outputDebugMessages = value;
 	}
@@ -88,7 +98,7 @@ public class Server implements Runnable {
 				return;
 			}
 			
-			if (outputDebugConnections) System.out.println("Server: got connection to " + clientSocket.getRemoteSocketAddress());
+			if (outputDebugConnections) System.out.println("TCPServer: got connection to " + clientSocket.getRemoteSocketAddress());
 			
 			while (!clientSocket.isClosed()) {
 				try {
@@ -99,18 +109,18 @@ public class Server implements Runnable {
 				}
 				
 				if (message == null) {
-					if (outputDebugConnections) System.out.println("Server: Connection closed by client: " + clientSocket.getRemoteSocketAddress());
+					if (outputDebugConnections) System.out.println("TCPServer: Connection closed by client: " + clientSocket.getRemoteSocketAddress());
 					break;
 				}
 				
 				String messageStr = new String(message);
-				if (outputDebugMessages) System.out.println("Server: received Message: '" + messageStr + "'");
+				if (outputDebugMessages) System.out.println("TCPServer: received Message: '" + messageStr + "'");
 				
 				byte[] response = handleMessage(message);
 				
 				
 				if (response != null) {
-					if (outputDebugMessages) System.out.println("Server: send Response: '" + new String(response) + "'");
+					if (outputDebugMessages) System.out.println("TCPServer: send Response: '" + new String(response) + "'");
 					
 					try {
 						sendMessage(response, clientSocket);
@@ -121,9 +131,23 @@ public class Server implements Runnable {
 				}
 			}
 			
-			if (outputDebugConnections) System.out.println("Server: connection closed to '" + clientSocket.getRemoteSocketAddress() + "'");
+			if (outputDebugConnections) System.out.println("TCPServer: connection closed to '" + clientSocket.getRemoteSocketAddress() + "'");
 		}
 		
 	}
+	
+	/**
+ 	 * Handles the incomming message and generates a response.
+ 	 * @param message Incomming
+ 	 * @return        Response
+ 	 */
+ 	protected byte[] handleMessage(byte[] message) {
+ 		if (tcpServerHandler != null) {
+ 			return tcpServerHandler.handleMessage(message);
+ 		}
+ 		else {
+ 			return null;
+ 		}
+ 	}
 
 }

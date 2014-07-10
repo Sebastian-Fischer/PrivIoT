@@ -25,7 +25,7 @@ public class SimpleIntegerSensor extends Sensor {
 	}
 	
 	@Override
-	protected void getAndPublicSensorData() {
+	protected void getAndPublishSensorData() {
 		// add +- 5
 		actualData += 5 - (int)(Math.round(Math.random() * 10));
 		

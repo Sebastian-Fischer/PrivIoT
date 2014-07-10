@@ -31,4 +31,9 @@ public abstract class Service {
 		actualData = newData;
 		receivedSensorData();
 	}
+	
+	/**
+	 * Starts the service.
+	 */
+	public abstract void startService();
 }

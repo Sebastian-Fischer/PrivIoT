@@ -73,7 +73,7 @@ public abstract class Sensor implements Runnable {
 	@Override
 	public void run() {
 		while(true) {
-			getAndPublicSensorData();
+			getAndPublishSensorData();
 			
 			try {
 				Thread.sleep(updateFrequency * 1000);
@@ -98,7 +98,7 @@ public abstract class Sensor implements Runnable {
 	/**
 	 * The sensor gets the data of the sensor device and publishes it.
 	 */
-	protected abstract void getAndPublicSensorData();
+	protected abstract void getAndPublishSensorData();
 	
 	
 }
