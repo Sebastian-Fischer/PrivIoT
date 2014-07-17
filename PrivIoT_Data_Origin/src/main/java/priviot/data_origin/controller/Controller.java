@@ -3,7 +3,6 @@ package priviot.data_origin.controller;
 import priviot.data_origin.data.SensorData;
 import priviot.data_origin.sensor.Sensor;
 import priviot.data_origin.sensor.SensorObserver;
-import priviot.data_origin.service.Service;
 
 /**
  * Superclass for all Controllers.
@@ -15,9 +14,6 @@ import priviot.data_origin.service.Service;
  * A child class has to override receivedSensorData.
  */
 public abstract class Controller implements SensorObserver {
-	
-	/** Service, that publishes information to a client */
-	protected Service service;
 	
 	/** Sensor, that generates data or reads data from a sensor device */
 	protected Sensor sensor;

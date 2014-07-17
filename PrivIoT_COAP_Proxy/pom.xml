@@ -11,6 +11,25 @@
   		<artifactId>PrivIoT_Utils</artifactId>
   		<version>0.0.1-SNAPSHOT</version>
   	</dependency>
+  	
+  	<dependency>
+        <groupId>de.uniluebeck.itm</groupId>
+        <artifactId>ncoap-core</artifactId>
+        <version>1.8.1</version>
+    </dependency>
+  	
+  	<dependency>
+	   <groupId>log4j</groupId>
+	   <artifactId>log4j</artifactId>
+	   <version>1.2.16</version>
+	</dependency>
+	
+	<dependency>
+        <groupId>org.apache.jena</groupId>
+	    <artifactId>apache-jena-libs</artifactId>
+	    <type>pom</type>
+	    <version>2.11.2</version>
+	</dependency>
   </dependencies>
   
   <build>
