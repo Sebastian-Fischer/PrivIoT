@@ -1,11 +1,9 @@
 package priviot.utils.data.transfer;
 
-import java.io.Serializable;
-
 /**
  * This DataPackage contains a encrypted version of the SensorData and the encrypted key.
  */
-public class EncryptedSensorDataPackage extends DataPackage implements Serializable {
+public class EncryptedRdfModelDataPackage implements DataPackage {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -15,8 +13,13 @@ public class EncryptedSensorDataPackage extends DataPackage implements Serializa
 	/** The key needed to decrypt encryptedSensorData. Encrypted with another secret key */
 	private byte[] encryptedKey;
 	
-	public EncryptedSensorDataPackage() {
+	public EncryptedRdfModelDataPackage() {
 	}
+	
+	public EncryptedRdfModelDataPackage(byte[] encryptedSensorData, byte[] encryptedKey) {
+	    this.encryptedSensorData = encryptedSensorData;
+	    this.encryptedKey = encryptedKey;
+    }
 
 	/** Returns the data */
 	public byte[] getSensorData() {
@@ -39,7 +42,17 @@ public class EncryptedSensorDataPackage extends DataPackage implements Serializa
 	}
 
 	@Override
-	public String toString() {
-		return "EncryptedSensorDataPackage";
+	public String toUTF8() {
+		return "EncryptedRdfModelDataPackage: ( " + 
+	           "encryptedSensorData: '" + encryptedSensorData + "', " + 
+			   "encryptedKey: '" + encryptedKey + "' )";
+	}
+
+	@Override
+	public String toXML() {
+		return "<EncryptedRdfModelDataPackage>\n" + 
+	           "\t<encryptedSensorData>" + encryptedSensorData + "</encryptedSensorData>\n" + 
+			   "\t<encryptedKey>" + encryptedKey + "</encryptedKey>\n" +
+	           "</EncryptedRdfModelDataPackage>";
 	}
 }

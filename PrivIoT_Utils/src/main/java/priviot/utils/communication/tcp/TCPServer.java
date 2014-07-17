@@ -1,6 +1,7 @@
 package priviot.utils.communication.tcp;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 
 /**
  * The TCPServer encapsulates the TCP communication.
@@ -116,7 +117,8 @@ public class TCPServer implements Runnable {
 				String messageStr = new String(message);
 				if (outputDebugMessages) System.out.println("TCPServer: received Message: '" + messageStr + "'");
 				
-				byte[] response = handleMessage(message);
+				InetSocketAddress remoteAddress = (InetSocketAddress)(clientSocket.getRemoteSocketAddress());
+				byte[] response = handleMessage(message, remoteAddress.getAddress().getHostAddress(), remoteAddress.getPort());
 				
 				
 				if (response != null) {
@@ -141,9 +143,9 @@ public class TCPServer implements Runnable {
  	 * @param message Incomming
  	 * @return        Response
  	 */
- 	protected byte[] handleMessage(byte[] message) {
+ 	protected byte[] handleMessage(byte[] message, String clientAddress, int clientPort) {
  		if (tcpServerHandler != null) {
- 			return tcpServerHandler.handleMessage(message);
+ 			return tcpServerHandler.handleMessage(message, clientAddress, clientPort);
  		}
  		else {
  			return null;

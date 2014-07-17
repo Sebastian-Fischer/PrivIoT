@@ -5,9 +5,17 @@ import java.io.Serializable;
 /**
  * A data package that can be transfered via network.
  */
-public abstract class DataPackage implements Serializable {
-
-	private static final long serialVersionUID = 1L;
+public interface DataPackage extends Serializable {
 	
-	public abstract String toString();
+	/**
+	 * Transforms the DataPackage into a utf8 string
+	 * @return
+	 */
+	String toUTF8();
+	
+	/**
+	 * Transforms the DataPackage into a xml string
+	 * @return
+	 */
+	String toXML();
 }

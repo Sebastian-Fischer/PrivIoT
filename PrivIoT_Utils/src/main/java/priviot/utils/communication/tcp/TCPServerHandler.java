@@ -6,5 +6,5 @@ public interface TCPServerHandler {
  	 * @param message Incomming
  	 * @return        Response
  	 */
- 	byte[] handleMessage(byte[] message);
+ 	byte[] handleMessage(byte[] message, String clientAddress, int clientPort);
 }
