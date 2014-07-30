@@ -1,4 +1,4 @@
-package priviot.utils.encryption.cipher.elgamal;
+package priviot.utils.encryption.cipher.asymmetric.elgamal;
 
 import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
@@ -27,7 +27,7 @@ import javax.crypto.spec.DHParameterSpec;
 
 import  org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import priviot.utils.encryption.cipher.AsymmetricCipher;
+import priviot.utils.encryption.cipher.AsymmetricCipherer;
 
 /**
  * Encapsulates implementation of symmetric cipher using Elgamal algorithm.
@@ -40,7 +40,7 @@ import priviot.utils.encryption.cipher.AsymmetricCipher;
  * 
  * TODO: Uses Electronic Codebook Mode (ECB), which makes replay attacks easy. Better use Cipher Block Chaining (CBC).
  */
-public class ElgamalCipher implements AsymmetricCipher {
+public class ElgamalCipherer implements AsymmetricCipherer {
 	
 	//TODO: choose very secure g and p parameters. They can be fixed, but we better choose very secure parameters.
 
@@ -72,7 +72,7 @@ public class ElgamalCipher implements AsymmetricCipher {
 		Security.addProvider(new BouncyCastleProvider());
 	}
 	
-	public ElgamalCipher() throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException, IllegalArgumentException {
+	public ElgamalCipherer() throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException, IllegalArgumentException {
 		keyPairGenerator = KeyPairGenerator.getInstance("ElGamal", "BC");
 		cipher = Cipher.getInstance("ElGamal/ECB/PKCS1Padding", "BC");
 		keyFactory = KeyFactory.getInstance("ElGamal", "BC");
@@ -206,5 +206,15 @@ public class ElgamalCipher implements AsymmetricCipher {
 		System.out.println("P: BigInteger(" + p.toString(16) + ", 16)");
 		System.out.println("G: BigInteger(" + g.toString(16) + ", 16)");
 	}
+
+    @Override
+    public String getAlgorithm() {
+        return cipher.getAlgorithm();
+    }
+
+    @Override
+    public int getKeySize() {
+        return keysize;
+    }
 
 }

@@ -11,7 +11,7 @@ import javax.crypto.ShortBufferException;
  * Interface for cipher implementations
  * A Cipherer can encapsulate a symmetric or asymmetric algorithm.
  */
-public interface Cipher {
+public interface Cipherer {
 	/**
 	 * Initializes the Cipherer with a keysize.
 	 * @param keysize Length of Key in Bit, e.g. 256, 512, 1024, 2048
@@ -29,14 +29,14 @@ public interface Cipher {
 	 * @param plaintext The plaintext
 	 * @return encrypted bytes
 	 */
-	public byte[] encrypt(byte[] plaintext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ShortBufferException;
+	public byte[] encrypt(byte[] plaintext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ShortBufferException, InvalidAlgorithmParameterException;
 	
 	/**
 	 * Decrypts a encrypted text with the Key (private key in asymmetric encryption)
 	 * @param encrypted The encrypted text to decrypt
 	 * @return plaintext bytes
 	 */
-	public byte[] decrypt(byte[] ciphertext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException;
+	public byte[] decrypt(byte[] ciphertext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException;
 	
 	/**
 	 * Returns the configuration of this class as String.
@@ -44,4 +44,16 @@ public interface Cipher {
 	 * @return configuration
 	 */
 	public String getConfiguration();
+	
+	/**
+	 * Returns the algorithm as a standard formated String of the java crypto API.
+	 * @return algorithm name
+	 */
+	public String getAlgorithm();
+	
+	/**
+	 * Return the key size.
+	 * @return key size
+	 */
+	public int getKeySize();
 }

@@ -10,7 +10,7 @@ import javax.crypto.IllegalBlockSizeException;
 /**
  * Interface for asymmetric cipher implementations.
  */
-public interface AsymmetricCipher extends Cipher {
+public interface AsymmetricCipherer extends Cipherer {
 	/**
 	 * Encrypts a plaintext with the private Key
 	 * @param plaintext The plaintext

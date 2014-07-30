@@ -1,4 +1,4 @@
-package priviot.utils.encryption.cipher.rsa;
+package priviot.utils.encryption.cipher.asymmetric.rsa;
 
 import java.security.*;
 import java.security.spec.*;
@@ -10,14 +10,14 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
 
-import priviot.utils.encryption.cipher.AsymmetricCipher;
+import priviot.utils.encryption.cipher.AsymmetricCipherer;
 
 /**
  * Encapsulates asymmetric cipher implementation of RSA algorithm.
  * 
  * TODO: Uses Electronic Codebook Mode (ECB), which makes replay attacks easy. Better use Cipher Block Chaining (CBC).
  */
-public class RSACipher implements AsymmetricCipher {
+public class RSACipherer implements AsymmetricCipherer {
 	
 	private static int blockSize1024 = 117;
 	private static int blockSize2048 = 245;
@@ -33,7 +33,7 @@ public class RSACipher implements AsymmetricCipher {
 	
 	private int keysize = 0;
 	
-	public RSACipher() throws NoSuchAlgorithmException, NoSuchPaddingException {
+	public RSACipherer() throws NoSuchAlgorithmException, NoSuchPaddingException {
 		rsa = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		keyFactory = KeyFactory.getInstance("RSA");
 		keyPairGenerator = KeyPairGenerator.getInstance("RSA");
@@ -152,5 +152,15 @@ public class RSACipher implements AsymmetricCipher {
 			return 0;
 		}
 	}
+
+    @Override
+    public String getAlgorithm() {
+        return rsa.getAlgorithm();
+    }
+
+    @Override
+    public int getKeySize() {
+        return keysize;
+    }
 
 }
