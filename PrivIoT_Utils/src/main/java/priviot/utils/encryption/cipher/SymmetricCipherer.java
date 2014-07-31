@@ -3,13 +3,13 @@ package priviot.utils.encryption.cipher;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
-public interface SymmetricCipherer extends Cipherer {
+public abstract class SymmetricCipherer extends Cipherer {
     /**
      * Returns the key as an array of bytes to send it to another party.
      * @return The key
      * @throws NoSuchAlgorithmException
      */
-    public byte[] getKeyAsByteArray() throws NoSuchAlgorithmException;
+    public abstract byte[] getKeyAsByteArray() throws NoSuchAlgorithmException;
     
     /**
      * Sets the key to the key given in keyBytes.
@@ -18,14 +18,14 @@ public interface SymmetricCipherer extends Cipherer {
      * @throws NoSuchAlgorithmException
      * @throws InvalidKeySpecException
      */
-    public void setKeyFromByteArray(byte[] keyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
+    public abstract void setKeyFromByteArray(byte[] keyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
     
     /**
      * Returns the initialization vector as an array of bytes to send it to another party.
      * @return The initialization vector
      * @throws NoSuchAlgorithmException
      */
-    public byte[] getIvAsByteArray() throws NoSuchAlgorithmException;
+    public abstract byte[] getIvAsByteArray() throws NoSuchAlgorithmException;
     
     /**
      * Sets the initialization vector to the initialization vector given in ivBytes.
@@ -34,5 +34,5 @@ public interface SymmetricCipherer extends Cipherer {
      * @throws NoSuchAlgorithmException
      * @throws InvalidKeySpecException
      */
-    public void setIvFromByteArray(byte[] ivBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
+    public abstract void setIvFromByteArray(byte[] ivBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
 }

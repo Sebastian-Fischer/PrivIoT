@@ -10,27 +10,27 @@ import javax.crypto.IllegalBlockSizeException;
 /**
  * Interface for asymmetric cipher implementations.
  */
-public interface AsymmetricCipherer extends Cipherer {
+public abstract class AsymmetricCipherer extends Cipherer {
 	/**
 	 * Encrypts a plaintext with the private Key
 	 * @param plaintext The plaintext
 	 * @return encrypted bytes
 	 */
-	public byte[] encryptWithPrivateKey(byte[] plaintext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException;
+	public abstract byte[] encryptWithPrivateKey(byte[] plaintext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException;
 	
 	/**
 	 * Decrypts a encrypted text with the public key
 	 * @param encrypted The encrypted text to decrypt
 	 * @return plaintext bytes
 	 */
-	public byte[] decryptWithPublicKey(byte[] ciphertext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException;
+	public abstract byte[] decryptWithPublicKey(byte[] ciphertext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException;
 	
 	/**
 	 * Returns the public key as an array of bytes to send it to another party.
 	 * @return The public key
 	 * @throws NoSuchAlgorithmException
 	 */
-	public byte[] getPublicKeyAsByteArray() throws NoSuchAlgorithmException;
+	public abstract byte[] getPublicKeyAsByteArray() throws NoSuchAlgorithmException;
 	
 	/**
 	 * Sets the public key to the key given in publicKeyBytes.
@@ -40,5 +40,5 @@ public interface AsymmetricCipherer extends Cipherer {
 	 * @throws NoSuchAlgorithmException
 	 * @throws InvalidKeySpecException
 	 */
-	public void setPublicKeyFromByteArray(byte[] publicKeyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
+	public abstract void setPublicKeyFromByteArray(byte[] publicKeyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
 }

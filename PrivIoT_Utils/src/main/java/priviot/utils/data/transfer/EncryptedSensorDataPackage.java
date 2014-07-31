@@ -22,10 +22,15 @@ import org.apache.commons.codec.binary.Base64;
  */
 public class EncryptedSensorDataPackage {
     
-    /** Method used to encrypt the content */
-    private String encryptionMethod = "";
-    /** Bit strength used with encryptionMethod to encrypt the content */
-    private int encryptionBitStrength = 0;
+    /** Asymmetric encryption method used to encrypt the key */
+    private String asymmetricEncryptionMethod = "";
+    /** Bit strength used with asymmetricEncryptionMethod to encrypt the key */
+    private int asymmetricEncryptionBitStrength = 0;
+    
+    /** Symmetric encryption method used to encrypt the content */
+    private String symmetricEncryptionMethod = "";
+    /** Bit strength used with symmetricEncryptionMethod to encrypt the content */
+    private int symmetricEncryptionBitStrength = 0;
     
     /** 
      * The content, encrypted with the symmetric key using encrpytionMethod  
@@ -53,24 +58,44 @@ public class EncryptedSensorDataPackage {
      * @throws SAXException 
      * @throws NumberFormatException 
      */
-    public EncryptedSensorDataPackage(String xmlString) throws NumberFormatException, SAXException {
-        fromXMLString(xmlString);
+    public static EncryptedSensorDataPackage createInstanceFromXMLString(String xmlString) throws NumberFormatException, 
+     SAXException, DataPackageParsingException {
+        EncryptedSensorDataPackage dataPackage = new EncryptedSensorDataPackage();
+        dataPackage.fromXMLString(xmlString);
+        
+        return dataPackage;
     }
 
-    public String getEncryptionMethod() {
-        return encryptionMethod;
+    public String getAsymmetricEncryptionMethod() {
+        return asymmetricEncryptionMethod;
     }
 
-    public void setEncryptionMethod(String encryptionMethod) {
-        this.encryptionMethod = encryptionMethod;
+    public void setAsymmetricEncryptionMethod(String asymmetricEncryptionMethod) {
+        this.asymmetricEncryptionMethod = asymmetricEncryptionMethod;
+    }
+    
+    public String getSymmetricEncryptionMethod() {
+        return symmetricEncryptionMethod;
     }
 
-    public int getEncryptionBitStrength() {
-        return encryptionBitStrength;
+    public void setSymmetricEncryptionMethod(String symmetricEncryptionMethod) {
+        this.symmetricEncryptionMethod = symmetricEncryptionMethod;
     }
 
-    public void setEncryptionBitStrength(int encryptionBitStrength) {
-        this.encryptionBitStrength = encryptionBitStrength;
+    public int getAsymmetricEncryptionBitStrength() {
+        return asymmetricEncryptionBitStrength;
+    }
+
+    public void setAsymmetricEncryptionBitStrength(int asymmetricEncryptionBitStrength) {
+        this.asymmetricEncryptionBitStrength = asymmetricEncryptionBitStrength;
+    }
+    
+    public int getSymmetricEncryptionBitStrength() {
+        return symmetricEncryptionBitStrength;
+    }
+
+    public void setSymmetricEncryptionBitStrength(int symmetricEncryptionBitStrength) {
+        this.symmetricEncryptionBitStrength = symmetricEncryptionBitStrength;
     }
 
     public byte[] getEncryptedContent() {
@@ -101,8 +126,10 @@ public class EncryptedSensorDataPackage {
     /**
      * Returns the data of the object as byte array in the following form:
      * <encrypted>
-     *   <encryptionMethod>[encryptionMethod]</encryptionMethod>
-     *   <encryptionBitStrength>[encryptionBitStrength]</encryptionBitStrength>
+     *   <asymmetricEncryptionMethod>[asymmetricEncryptionMethod}</asymmetricEncryptionMethod>
+     *   <asymmetricEncryptionBitStrength>[asymmetricEncryptionBitStrength]</asymmetricEncryptionBitStrength>
+     *   <symmetricEncryptionMethod>[symmetricEncryptionMethod]</symmetricEncryptionMethod>
+     *   <symmetricEncryptionBitStrength>[symmetricEncryptionBitStrength]</symmetricEncryptionBitStrength>
      *   <encryptedContent>[encryptedContent]</encryptedContent>
      *   <encryptedInitializationVector>[encryptedInitializationVector]</encryptedInitializationVector>
      *   <encryptedKey>[encryptedKey]</encryptedKey>
@@ -123,13 +150,21 @@ public class EncryptedSensorDataPackage {
         
         Element rootElement = document.createElement("encrypted");
         
-        Element elementEncryptionMethod = document.createElement("encryptionMethod");
-        elementEncryptionMethod.appendChild( document.createTextNode(getEncryptionMethod()) );
-        rootElement.appendChild(elementEncryptionMethod);
+        Element elementAsymmetricEncryptionMethod = document.createElement("asymmetricEncryptionMethod");
+        elementAsymmetricEncryptionMethod.appendChild( document.createTextNode(asymmetricEncryptionMethod) );
+        rootElement.appendChild(elementAsymmetricEncryptionMethod);
         
-        Element elementEncryptionBitStrength = document.createElement("encryptionBitStrength");
-        elementEncryptionBitStrength.appendChild( document.createTextNode(String.valueOf(getEncryptionBitStrength())) );
-        rootElement.appendChild(elementEncryptionBitStrength);
+        Element elementAsymmetricEncryptionBitStrength = document.createElement("asymmetricEncryptionBitStrength");
+        elementAsymmetricEncryptionBitStrength.appendChild( document.createTextNode(String.valueOf(asymmetricEncryptionBitStrength)) );
+        rootElement.appendChild(elementAsymmetricEncryptionBitStrength);
+        
+        Element elementSymmetricEncryptionMethod = document.createElement("symmetricEncryptionMethod");
+        elementSymmetricEncryptionMethod.appendChild( document.createTextNode(symmetricEncryptionMethod) );
+        rootElement.appendChild(elementSymmetricEncryptionMethod);
+        
+        Element elementSymmetricEncryptionBitStrength = document.createElement("symmetricEncryptionBitStrength");
+        elementSymmetricEncryptionBitStrength.appendChild( document.createTextNode(String.valueOf(symmetricEncryptionBitStrength)) );
+        rootElement.appendChild(elementSymmetricEncryptionBitStrength);
         
         Element elementEncryptedContent = document.createElement("encryptedContent");
         elementEncryptedContent.appendChild( document.createTextNode(Base64.encodeBase64String(encryptedContent)) );
@@ -151,8 +186,10 @@ public class EncryptedSensorDataPackage {
     /**
      * Creates an EncryptedSensorDataPackage from a string containing xml data in the format:
      * <encrypted>
-     *   <encryptionMethod>[encryptionMethod]</encryptionMethod>
-     *   <encryptionBitStrength>[encryptionBitStrength]</encryptionBitStrength>
+     *   <asymmetricEncryptionMethod>[asymmetricEncryptionMethod}</asymmetricEncryptionMethod>
+     *   <asymmetricEncryptionBitStrength>[asymmetricEncryptionBitStrength]</asymmetricEncryptionBitStrength>
+     *   <symmetricEncryptionMethod>[symmetricEncryptionMethod]</symmetricEncryptionMethod>
+     *   <symmetricEncryptionBitStrength>[symmetricEncryptionBitStrength]</symmetricEncryptionBitStrength>
      *   <encryptedContent>[encryptedContent]</encryptedContent>
      *   <encryptedInitializationVector>[encryptedInitializationVector]</encryptedInitializationVector>
      *   <encryptedKey>[encryptedKey]</encryptedKey>
@@ -161,7 +198,8 @@ public class EncryptedSensorDataPackage {
      * @param xmlString
      * @throws SAXException, NumberFormatException
      */
-    private boolean fromXMLString(String xmlString) throws SAXException, NumberFormatException {
+    private boolean fromXMLString(String xmlString) throws SAXException, 
+     NumberFormatException, DataPackageParsingException {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder;
         try {
@@ -186,54 +224,70 @@ public class EncryptedSensorDataPackage {
         }
         
         if (document.getChildNodes().getLength() != 1) {
-            return false;
+            throw new DataPackageParsingException("Empty xml document");
         }
         
         Node rootElement = document.getChildNodes().item(0);
         
-        if (rootElement.getChildNodes().getLength() != 5) {
-            return false;
+        if (rootElement.getChildNodes().getLength() != 7) {
+            throw new DataPackageParsingException("Wrong number of child nodes in root element");
         }
-        if (!"encryptionMethod".equals(rootElement.getChildNodes().item(0).getNodeName())) {
-            return false;
+        if (!"asymmetricEncryptionMethod".equals(rootElement.getChildNodes().item(0).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node asymmetricEncryptionMethod");
         }
-        if (!"encryptionBitStrength".equals(rootElement.getChildNodes().item(1).getNodeName())) {
-            return false;
+        if (!"asymmetricEncryptionBitStrength".equals(rootElement.getChildNodes().item(1).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node asymmetricEncryptionBitStrength");
         }
-        if (!"encryptedContent".equals(rootElement.getChildNodes().item(2).getNodeName())) {
-            return false;
+        if (!"symmetricEncryptionMethod".equals(rootElement.getChildNodes().item(2).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node symmetricEncryptionMethod");
         }
-        if (!"encryptedInitializationVector".equals(rootElement.getChildNodes().item(3).getNodeName())) {
-            return false;
+        if (!"symmetricEncryptionBitStrength".equals(rootElement.getChildNodes().item(3).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node symmetricEncryptionBitStrength");
         }
-        if (!"encryptedKey".equals(rootElement.getChildNodes().item(4).getNodeName())) {
-            return false;
+        if (!"encryptedContent".equals(rootElement.getChildNodes().item(4).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node encryptedContent");
+        }
+        if (!"encryptedInitializationVector".equals(rootElement.getChildNodes().item(5).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node encryptedInitializationVector");
+        }
+        if (!"encryptedKey".equals(rootElement.getChildNodes().item(6).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node encryptedKey");
         }
         
-        Node elementEncryptionMethod = rootElement.getChildNodes().item(0);
-        Node elementEncryptionBitStrength = rootElement.getChildNodes().item(1);
-        Node elementEncryptedContent = rootElement.getChildNodes().item(2);
-        Node elementEncryptedIV = rootElement.getChildNodes().item(3);
-        Node elementEncryptedKey = rootElement.getChildNodes().item(4);
+        Node elementAsymmetricEncryptionMethod = rootElement.getChildNodes().item(0);
+        Node elementAsymmetricEncryptionBitStrength = rootElement.getChildNodes().item(1);
+        Node elementSymmetricEncryptionMethod = rootElement.getChildNodes().item(2);
+        Node elementSymmetricEncryptionBitStrength = rootElement.getChildNodes().item(3);
+        Node elementEncryptedContent = rootElement.getChildNodes().item(4);
+        Node elementEncryptedIV = rootElement.getChildNodes().item(5);
+        Node elementEncryptedKey = rootElement.getChildNodes().item(6);
         
-        if (elementEncryptionMethod.getChildNodes().getLength() != 1) {
-            return false;
+        if (elementAsymmetricEncryptionMethod.getChildNodes().getLength() > 1) {
+            throw new DataPackageParsingException("Unexpected content in node asymmetricEncryptionMethod");
         }
-        if (elementEncryptionBitStrength.getChildNodes().getLength() != 1) {
-            return false;
+        if (elementAsymmetricEncryptionBitStrength.getChildNodes().getLength() != 1) {
+            throw new DataPackageParsingException("Unexpected content in node asymmetricEncryptionBitStrength");
+        }
+        if (elementSymmetricEncryptionMethod.getChildNodes().getLength() > 1) {
+            throw new DataPackageParsingException("Unexpected content in node symmetricEncryptionMethod");
+        }
+        if (elementSymmetricEncryptionBitStrength.getChildNodes().getLength() != 1) {
+            throw new DataPackageParsingException("Unexpected content in node symmetricEncryptionBitStrength");
         }
         if (elementEncryptedContent.getChildNodes().getLength() != 1) {
-            return false;
+            throw new DataPackageParsingException("Unexpected content in node encryptedContent");
         }
         if (elementEncryptedIV.getChildNodes().getLength() != 1) {
-            return false;
+            throw new DataPackageParsingException("Unexpected content in node encryptedInitializationVector");
         }
         if (elementEncryptedKey.getChildNodes().getLength() != 1) {
-            return false;
+            throw new DataPackageParsingException("Unexpected content in node encryptedKey");
         }
         
-        encryptionMethod = elementEncryptionMethod.getTextContent();
-        encryptionBitStrength = Integer.parseInt(elementEncryptionBitStrength.getTextContent());
+        asymmetricEncryptionMethod = elementAsymmetricEncryptionMethod.getTextContent();
+        asymmetricEncryptionBitStrength = Integer.parseInt(elementAsymmetricEncryptionBitStrength.getTextContent());
+        symmetricEncryptionMethod = elementSymmetricEncryptionMethod.getTextContent();
+        symmetricEncryptionBitStrength = Integer.parseInt(elementSymmetricEncryptionBitStrength.getTextContent());
         encryptedContent = Base64.decodeBase64(elementEncryptedContent.getTextContent());
         encryptedInitializationVector = Base64.decodeBase64(elementEncryptedIV.getTextContent());
         encryptedKey = Base64.decodeBase64(elementEncryptedKey.getTextContent());

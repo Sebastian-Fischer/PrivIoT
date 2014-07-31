@@ -14,11 +14,11 @@ import priviot.utils.encryption.cipher.AsymmetricCipherer;
 
 /**
  * Encapsulates asymmetric cipher implementation of RSA algorithm.
- * 
- * TODO: Uses Electronic Codebook Mode (ECB), which makes replay attacks easy. Better use Cipher Block Chaining (CBC).
  */
-public class RSACipherer implements AsymmetricCipherer {
+public class RSACipherer extends AsymmetricCipherer {
 	
+    private static String algorithmName = "RSA/ECB/PKCS1Padding";
+    
 	private static int blockSize1024 = 117;
 	private static int blockSize2048 = 245;
 	private static int blockSize4096 = 501;
@@ -33,8 +33,13 @@ public class RSACipherer implements AsymmetricCipherer {
 	
 	private int keysize = 0;
 	
+	/**
+	 * Constructor.
+	 * @throws NoSuchAlgorithmException  Algorithm RSA/ECB not supported locally
+	 * @throws NoSuchPaddingException    Padding PKCS1Padding not supported locally
+	 */
 	public RSACipherer() throws NoSuchAlgorithmException, NoSuchPaddingException {
-		rsa = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		rsa = Cipher.getInstance(algorithmName);
 		keyFactory = KeyFactory.getInstance("RSA");
 		keyPairGenerator = KeyPairGenerator.getInstance("RSA");
 		secureRandom = new SecureRandom();
@@ -153,14 +158,22 @@ public class RSACipherer implements AsymmetricCipherer {
 		}
 	}
 
-    @Override
-    public String getAlgorithm() {
-        return rsa.getAlgorithm();
+	/**
+     * Returns the algorithm as a standard formated String of the java crypto API.
+     * @return algorithm name
+     */
+    public static String getAlgorithm() {
+        return algorithmName;
     }
 
     @Override
     public int getKeySize() {
         return keysize;
+    }
+
+    @Override
+    public String getUsedAlgorithm() {
+        return rsa.getAlgorithm();
     }
 
 }

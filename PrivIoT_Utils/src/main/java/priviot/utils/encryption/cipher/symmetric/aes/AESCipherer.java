@@ -16,14 +16,12 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.apache.log4j.Logger;
-
 import priviot.utils.encryption.cipher.SymmetricCipherer;
 
 /**
  * Encapsulates symmetric cipher implementation of AES algorithm.
  */
-public class AESCipherer implements SymmetricCipherer {
+public class AESCipherer extends SymmetricCipherer {
 
     private static String algorithmName = "AES/CBC/PKCS5Padding";
     private static String keySpecName = "AES";
@@ -37,6 +35,11 @@ public class AESCipherer implements SymmetricCipherer {
     
     private int keysize = 0;
     
+    /**
+     * Constructor.
+     * @throws NoSuchAlgorithmException  Algorithm AES/CBC not supported locally
+     * @throws NoSuchPaddingException    Padding PKCS5Padding not supported locally
+     */
     public AESCipherer() throws NoSuchAlgorithmException, NoSuchPaddingException {
         aes = Cipher.getInstance(algorithmName);
         keyGenerator = KeyGenerator.getInstance(keySpecName);
@@ -108,14 +111,22 @@ public class AESCipherer implements SymmetricCipherer {
         return aes.doFinal(ciphertext);
     }
 
-    @Override
-    public String getAlgorithm() {
-        return aes.getAlgorithm();
+    /**
+     * Returns the algorithm as a standard formated String of the java crypto API.
+     * @return algorithm name
+     */
+    public static String getAlgorithm() {
+        return algorithmName;
     }
 
     @Override
     public int getKeySize() {
         return keysize;
+    }
+
+    @Override
+    public String getUsedAlgorithm() {
+        return aes.getAlgorithm();
     }
 
 }
