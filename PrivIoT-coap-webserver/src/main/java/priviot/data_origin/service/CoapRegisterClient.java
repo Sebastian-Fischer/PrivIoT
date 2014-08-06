@@ -1,93 +1,150 @@
 package priviot.data_origin.service;
 
-import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
-import de.uniluebeck.itm.ncoap.application.client.Token;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.TransmissionInformationProcessor;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.security.cert.X509Certificate;
+import java.util.Observable;
+import java.util.Observer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
-import java.util.Observable;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import priviot.data_origin.data.KeyDatabaseEntry;
+import priviot.utils.data.transfer.PrivIoTContentFormat;
+import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.message.MessageCode;
+import de.uniluebeck.itm.ncoap.message.MessageType;
 
 /**
- * Client to communicate with the CoAP Proxy over the CoAP protocol.
+ * This component has two tasks to perform:
+ * 1. It can communicate with a CoAP Provacy Proxy to register the CoAP-Webserver.
+ * 2. It can communicate with a Smart Service Proxy to retreive it's X509 certificate.
  * 
- * The CoapRegisterClient has two tasks:
- * 1. Register the CoAP-Webserver at a CoAP Privacy Proxy or a Smart Service Proxy.
- *    As reaction the proxy will register itself as observer at the sensor webservices.
- * 2. Get the X.509 certificate of a Smart Service Proxy to get the public key.
+ * For communication a {@link CoapClient} is used.
  */
-public class CoapRegisterClient extends Observable implements CoapResponseProcessor, TransmissionInformationProcessor,
-        RetransmissionTimeoutProcessor {
+public class CoapRegisterClient implements Observer {
+    private static String urlPathCertificate = "/certificate";
+    private static String urlPathRegistry = "/registry";
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-
-    private AtomicBoolean responseReceived;
-    private AtomicInteger transmissionCounter;
-    private AtomicBoolean timedOut;
-
-
-    public CoapRegisterClient(){
-        this.responseReceived = new AtomicBoolean(false);
-        this.transmissionCounter = new AtomicInteger(0);
-        this.timedOut = new AtomicBoolean(false);
-    }
-
+    
+    private String urlSSP;
+    private int portSSP;
+    private String urlCPP;
+    private int portCPP;
+    
+    /** Can send CoAP requests using the CoapRegisterClient */
+    private CoapClientApplication coapClientApplication;
+    
+    /** Used to send CoAP requests */
+    private CoapClient coapClient;
+    
+    private CoapRegisterClientObserver observer;
+    
     /**
-     * Increases the reponse counter by 1, i.e. {@link #getResponseCount()} will return a higher value after
-     * invocation of this method.
-     *
-     * @param coapResponse the response message
+     * Constructor.
+     * 
+     * @param coapClientApplication  The CoapClientApplication object
+     * @param urlSSP   The host url of the Smart Service Proxy
+     * @param portSSP  The port of the Smart Service Proxy
+     * @param urlCPP   The host url of the CoAP Privacy Proxy
+     * @param portCPP  The port of the CoAP Privacy Proxy
      */
-    @Override
-    public void processCoapResponse(CoapResponse coapResponse) {
-        responseReceived.set(true);
-        log.info("Received: {}", coapResponse);
+    public CoapRegisterClient(CoapClientApplication coapClientApplication,
+            String urlSSP, int portSSP, String urlCPP, int portCPP) {
         
-        setChanged();
-        notifyObservers(coapResponse);
+        this.urlSSP = urlSSP;
+        this.portSSP = portSSP;
+        this.urlCPP = urlCPP;
+        this.portCPP = portCPP;
+        
+        coapClient = new CoapClient();
+        coapClient.addObserver(this);
     }
-
+    
+    public void setObserver(CoapRegisterClientObserver observer) {
+        this.observer = observer;
+    }
+    
     /**
-     * Returns the number of responses received
-     * @return the number of responses received
+     * Sends a certificate request to the Smart Service Proxy to get it's X509 certificate.
+     * @throws URISyntaxException
+     * @throws UnknownHostException
      */
-    public int getResponseCount(){
-        return this.responseReceived.get() ? 1 : 0;
+    public void sendCertificateRequest() throws URISyntaxException, UnknownHostException {
+        // Create CoAP request
+        URI webserviceURI = new URI ("coap", null, urlSSP, portSSP, urlPathCertificate, "", null);
+        
+        MessageType.Name messageType = MessageType.Name.CON;
+        
+        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, webserviceURI, false);
+        
+        // Set recipient (webservice host)
+        InetSocketAddress recipient;
+        recipient = new InetSocketAddress(InetAddress.getByName(urlSSP), portSSP);
+        
+        // Send the CoAP request
+        coapClientApplication.sendCoapRequest(coapRequest, coapClient, recipient);
+    }
+    
+    /**
+     * Sends the registration request to the CoAP Privacy Proxy.
+     * The proxy will react with a registration as observer to the available webservices.
+     * @throws URISyntaxException
+     * @throws UnknownHostException
+     */
+    public void sendRegisterRequest() throws URISyntaxException, UnknownHostException {
+        // Create CoAP request
+        URI webserviceURI = new URI ("coap", null, urlCPP, portCPP, urlPathRegistry, "", null);
+        
+        MessageType.Name messageType = MessageType.Name.CON;
+        
+        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, webserviceURI, false);
+        
+        // Set recipient (webservice host)
+        InetSocketAddress recipient;
+        recipient = new InetSocketAddress(InetAddress.getByName(urlCPP), portCPP);
+        
+        // Send the CoAP request
+        coapClientApplication.sendCoapRequest(coapRequest, coapClient, recipient);
     }
 
-
+    //TODO: change to own observer class
     @Override
-    public void messageTransmitted(InetSocketAddress remoteEndpint, int messageID, Token token,
-                                   boolean retransmission) {
-        int value = transmissionCounter.incrementAndGet();
-
-        if(retransmission){
-            log.info("Transmission #{} for message with ID {} to {} (Token: {})",
-                    new Object[]{value, messageID, remoteEndpint, token});
+    public void update(Observable coapClientObs, Object coapResponseObj) {
+        if (coapClient != coapClientObs) {
+            return;
         }
-        else{
-            log.info("Message with ID {} written to {} (Token: {})",
-                    new Object[]{messageID, remoteEndpint, token});
+        
+        CoapResponse coapResponse = (CoapResponse)coapResponseObj;
+        
+        URI locationUri;
+        try {
+            locationUri = coapResponse.getLocationURI();
+        } catch (URISyntaxException e) {
+            log.error("location uri of received message is bad formed");
+            return;
         }
+        String baseUri = locationUri.getHost();
+        
+        log.info("received message from: " + locationUri + " (host: " + baseUri + ")");
+        
+        // if this is answer to certificate request
+        if (coapResponse.getContentFormat() == PrivIoTContentFormat.APP_X509CERTIFICATE) {
+            //TODO: parse X509Certificate
+            // maybe like this: http://www.oracle.com/technetwork/articles/javase/dig-signature-api-140772.html
+            X509Certificate certificate;
+            
+            if (observer != null) {
+                observer.receivedCertificate(locationUri, certificate);
+            }
+        }
+      
     }
-
-
-    @Override
-    public void processRetransmissionTimeout(InetSocketAddress remoteEndpoint, int messageID, Token token) {
-        log.info("Internal timeout for message with ID {} to {} (Token: {})",
-                new Object[]{messageID, remoteEndpoint, token});
-
-        timedOut.set(true);
-    }
-
-
-    public boolean isTimedOut(){
-        return timedOut.get();
-    }
+    
 }

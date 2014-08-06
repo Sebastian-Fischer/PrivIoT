@@ -22,7 +22,7 @@ import de.uniluebeck.itm.ncoap.message.MessageType;
 import priviot.data_origin.data.SensorData;
 import priviot.data_origin.data.SimpleIntegerSensorData;
 import priviot.data_origin.sensor.SimpleIntegerSensor;
-import priviot.data_origin.service.CoapRegisterClient;
+import priviot.data_origin.service.CoapClient;
 import priviot.data_origin.service.CoapSensorWebservice;
 import priviot.utils.data.transfer.DataPackage;
 import priviot.utils.data.transfer.RdfModelDataPackage;
@@ -115,7 +115,7 @@ public class RDFSimpleIntegerSensorCoapController extends Controller {
 		coapWebservice.updateRdfSensorData(dataPackage);
 	}
 	
-	private CoapRegisterClient sendCoapProxyRegisterRequest(String uriHost, int uriPort, String uriPath, String uriQuery) throws URISyntaxException, UnknownHostException {
+	private CoapClient sendCoapProxyRegisterRequest(String uriHost, int uriPort, String uriPath, String uriQuery) throws URISyntaxException, UnknownHostException {
         // Create CoAP request
         URI webserviceURI = new URI ("coap", null, uriHost, uriPort, uriPath, uriQuery, null);
     
@@ -129,7 +129,7 @@ public class RDFSimpleIntegerSensorCoapController extends Controller {
         InetSocketAddress recipient;
         recipient = new InetSocketAddress(InetAddress.getByName(uriHost), uriPort);
     
-        CoapRegisterClient dataOriginCoapClient = new CoapRegisterClient();
+        CoapClient dataOriginCoapClient = new CoapClient();
         
         // Send the CoAP request
         coapClientApplication.sendCoapRequest(coapRequest, dataOriginCoapClient, recipient);

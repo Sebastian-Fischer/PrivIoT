@@ -5,6 +5,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
@@ -31,7 +32,9 @@ import priviot.data_origin.data.SimpleIntegerSensorData;
 import priviot.data_origin.sensor.Sensor;
 import priviot.data_origin.sensor.SensorObserver;
 import priviot.data_origin.sensor.SimpleIntegerSensor;
+import priviot.data_origin.service.CoapClient;
 import priviot.data_origin.service.CoapRegisterClient;
+import priviot.data_origin.service.CoapRegisterClientObserver;
 import priviot.data_origin.service.CoapSensorWebservice;
 import priviot.utils.data.transfer.PrivIoTContentFormat;
 
@@ -47,10 +50,7 @@ import priviot.utils.data.transfer.PrivIoTContentFormat;
  * The CoAP Privacy Proxy will ask for the sensor webservices and register itself as observer at the 
  * {@link CoapSensorWebservice}-instances.
  */
-public class CoapWebserverController implements Observer, SensorObserver {
-    
-    private static String urlPathCertificate = "/certificate";
-    private static String urlPathRegistry = "/registry";
+public class CoapWebserverController implements SensorObserver, CoapRegisterClientObserver {
     
     /** Port the coap application listens to */
     private static final int OWN_PORT = 5684;
@@ -63,18 +63,13 @@ public class CoapWebserverController implements Observer, SensorObserver {
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
-    private String urlSSP;
-    private int portSSP;
-    private String urlCPP;
-    private int portCPP;
-    
     /** Listens to a local port. Web services can be registered here. */
     private CoapServerApplication coapServerApplication;
     
     /** Can send CoAP requests using the CoapRegisterClient */
     private CoapClientApplication coapClientApplication;
     
-    /** Used to send CoAP requests */
+    /** Used to retreive the certificate of teh SSP and to register the application at the CPP */
     private CoapRegisterClient coapRegisterClient;
     
     /** One observable webservice for each sensor */
@@ -98,22 +93,17 @@ public class CoapWebserverController implements Observer, SensorObserver {
      * @param portCPP  The port of the CoAP Privacy Proxy
      */
     public CoapWebserverController(String urlSSP, int portSSP, String urlCPP, int portCPP) {
-        this.urlSSP = urlSSP;
-        this.portSSP = portSSP;
-        this.urlCPP = urlCPP;
-        this.portCPP = portCPP;
-        
         coapServerApplication = new CoapServerApplication(OWN_PORT);
+        coapClientApplication = new CoapClientApplication();
         
         createSensorsAndWebservices();
         
         keyDatabase = new KeyDatabase();
         
-        coapRegisterClient = new CoapRegisterClient();
-        coapRegisterClient.addObserver(this);
+        coapRegisterClient = new CoapRegisterClient(coapClientApplication, urlSSP, portSSP, urlCPP, portCPP);
         
         try {
-            sendCertificateRequest();
+            coapRegisterClient.sendCertificateRequest();
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Exception during sendCertificateRequest: " + e.getLocalizedMessage());
         }
@@ -131,87 +121,7 @@ public class CoapWebserverController implements Observer, SensorObserver {
         coapServerApplication.registerService(coapWebservice1);
     }
     
-    /**
-     * Sends a certificate request to the Smart Service Proxy to get it's X509 certificate.
-     * @throws URISyntaxException
-     * @throws UnknownHostException
-     */
-    private void sendCertificateRequest() throws URISyntaxException, UnknownHostException {
-        // Create CoAP request
-        URI webserviceURI = new URI ("coap", null, urlSSP, portSSP, urlPathCertificate, "", null);
-        
-        MessageType.Name messageType = MessageType.Name.CON;
-        
-        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, webserviceURI, false);
-        
-        // Set recipient (webservice host)
-        InetSocketAddress recipient;
-        recipient = new InetSocketAddress(InetAddress.getByName(urlSSP), portSSP);
-        
-        // Send the CoAP request
-        coapClientApplication.sendCoapRequest(coapRequest, coapRegisterClient, recipient);
-    }
     
-    /**
-     * Sends the registration request to the CoAP Privacy Proxy.
-     * The proxy will react with a registration as observer to the available webservices.
-     * @throws URISyntaxException
-     * @throws UnknownHostException
-     */
-    private void sendRegisterRequest() throws URISyntaxException, UnknownHostException {
-        // Create CoAP request
-        URI webserviceURI = new URI ("coap", null, urlCPP, portCPP, urlPathRegistry, "", null);
-        
-        MessageType.Name messageType = MessageType.Name.CON;
-        
-        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, webserviceURI, false);
-        
-        // Set recipient (webservice host)
-        InetSocketAddress recipient;
-        recipient = new InetSocketAddress(InetAddress.getByName(urlCPP), portCPP);
-        
-        // Send the CoAP request
-        coapClientApplication.sendCoapRequest(coapRequest, coapRegisterClient, recipient);
-    }
-
-    //TODO: change to own observer class
-    @Override
-    public void update(Observable coapRegisterClientObs, Object coapResponseObj) {
-        if (coapRegisterClient != coapRegisterClientObs) {
-            return;
-        }
-        
-        CoapResponse coapResponse = (CoapResponse)coapResponseObj;
-        
-        URI locationUri;
-        try {
-            locationUri = coapResponse.getLocationURI();
-        } catch (URISyntaxException e) {
-            log.error("location uri of received message is bad formed");
-            return;
-        }
-        String baseUri = locationUri.getHost();
-        
-        log.info("received message from: " + locationUri + " (host: " + baseUri + ")");
-        
-        // if this is answer to certificate request
-        if (coapResponse.getContentFormat() == PrivIoTContentFormat.APP_X509CERTIFICATE) {
-            //TODO: parse X509Certificate
-            // maybe like this: http://www.oracle.com/technetwork/articles/javase/dig-signature-api-140772.html
-            byte[] publicKey = new byte[0];
-            
-            // save public key
-            keyDatabase.addEntry(new KeyDatabaseEntry(baseUri, publicKey));
-            
-            // send register request to CoAP Privacy Proxy
-            try {
-                sendRegisterRequest();
-            } catch (UnknownHostException | URISyntaxException e) {
-                log.error("Exception during sendRegisterRequest: " + e.getMessage());
-            }
-        }
-      
-    }
 
     /**
      * Whenever a sensor has new data available, this method is called.
@@ -248,8 +158,29 @@ public class CoapWebserverController implements Observer, SensorObserver {
                 return webservice;
             }
         }
-        
         return null;
+    }
+
+    /**
+     * Is called by coapRegisterClient when it receives the X509Certificate from the CoAP Privacy Proxy.
+     * The public key of the certificate is saved in the key database and
+     * a registration request is sent to the Smart Service Proxy.
+     */
+    @Override
+    public void receivedCertificate(URI fromUri, X509Certificate certificate) {
+        String baseUri = fromUri.getHost();
+        
+        byte[] publicKey = certificate.getPublicKey().getEncoded();
+        
+        // save public key
+        keyDatabase.addEntry(new KeyDatabaseEntry(baseUri, publicKey));
+        
+        // send register request to CoAP Privacy Proxy
+        try {
+            coapRegisterClient.sendRegisterRequest();
+        } catch (UnknownHostException | URISyntaxException e) {
+            log.error("Exception during sendRegisterRequest: " + e.getMessage());
+        }
     }
     
     
