@@ -142,6 +142,22 @@ public class ElgamalCipherer extends AsymmetricCipherer {
 		KeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
 		publicKey = keyFactory.generatePublic(keySpec);
 	}
+	
+	@Override
+    public byte[] getPrivateKeyAsByteArray() {
+        if (privateKey == null) {
+            return new byte[0];
+        }
+        
+        return privateKey.getEncoded();  
+    }
+
+    @Override
+    public void setPrivateKeyFromByteArray(byte[] privateKeyBytes)
+            throws NoSuchAlgorithmException, InvalidKeySpecException {
+        KeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
+        privateKey = keyFactory.generatePrivate(keySpec);
+    }
 
 	@Override
 	public byte[] encrypt(byte[] plaintext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ShortBufferException {		

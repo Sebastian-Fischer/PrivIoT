@@ -20,7 +20,7 @@ import priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
 import priviot.utils.encryption.cipher.asymmetric.elgamal.ElgamalCipherer;
 import priviot.utils.encryption.cipher.AsymmetricCipherer;
 import priviot.utils.encryption.cipher.CiphererFactory;
-import priviot.utils.data.transfer.DataPackageParsingException;
+import priviot.utils.data.DataPackageParsingException;
 import priviot.utils.data.transfer.EncryptedSensorDataPackage;
 import priviot.utils.encryption.EncryptionHelper;
 import priviot.utils.encryption.cipher.SymmetricCipherer;

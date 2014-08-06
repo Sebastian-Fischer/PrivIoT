@@ -25,7 +25,8 @@ public abstract class CiphererFactory {
      * @throws NoSuchPaddingException
      * @throws IllegalArgumentException
      */
-    public static AsymmetricCipherer createAsymmetricCipherer(String algorithmName) throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException, IllegalArgumentException {
+    public static AsymmetricCipherer createAsymmetricCipherer(String algorithmName) throws NoSuchAlgorithmException, 
+            NoSuchProviderException, NoSuchPaddingException {
         if (algorithmName == null) {
             return null;
         }

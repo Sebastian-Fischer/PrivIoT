@@ -14,8 +14,9 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
-
 import org.apache.commons.codec.binary.Base64;
+
+import priviot.utils.data.DataPackageParsingException;
 
 /**
  * Represents a data package with encrypted sensor data.

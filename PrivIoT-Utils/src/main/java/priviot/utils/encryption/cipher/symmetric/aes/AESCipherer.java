@@ -69,7 +69,7 @@ public class AESCipherer extends SymmetricCipherer {
     }
 
     @Override
-    public byte[] getKeyAsByteArray() throws NoSuchAlgorithmException {
+    public byte[] getKeyAsByteArray() {
         if (key == null) {
             return new byte[0];
         }
@@ -84,7 +84,7 @@ public class AESCipherer extends SymmetricCipherer {
     }
 
     @Override
-    public byte[] getIvAsByteArray() throws NoSuchAlgorithmException {
+    public byte[] getIvAsByteArray() {
         return initializationVector.getIV();
     }
 

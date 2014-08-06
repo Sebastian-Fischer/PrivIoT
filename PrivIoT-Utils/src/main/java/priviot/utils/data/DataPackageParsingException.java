@@ -1,4 +1,4 @@
-package priviot.utils.data.transfer;
+package priviot.utils.data;
 
 /**
  * Exception that can be thrown durin parsing of xml representation of a data package.

@@ -6,6 +6,11 @@ package priviot.utils.data.transfer;
 public class PrivIoTContentFormat {
 
     /**
+     * Corresponds to number 206
+     */
+    public static final long    APP_X509CERTIFICATE           = 206;
+    
+    /**
      * Corresponds to number 211
      */
     public static final long    APP_ENCRYPTED_RDF_XML         = 211;

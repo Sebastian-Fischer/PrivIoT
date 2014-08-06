@@ -28,9 +28,8 @@ public abstract class AsymmetricCipherer extends Cipherer {
 	/**
 	 * Returns the public key as an array of bytes to send it to another party.
 	 * @return The public key
-	 * @throws NoSuchAlgorithmException
 	 */
-	public abstract byte[] getPublicKeyAsByteArray() throws NoSuchAlgorithmException;
+	public abstract byte[] getPublicKeyAsByteArray();
 	
 	/**
 	 * Sets the public key to the key given in publicKeyBytes.
@@ -41,4 +40,20 @@ public abstract class AsymmetricCipherer extends Cipherer {
 	 * @throws InvalidKeySpecException
 	 */
 	public abstract void setPublicKeyFromByteArray(byte[] publicKeyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
+	
+	/**
+     * Returns the private key as an array of bytes to save it securely.
+     * @return The private key
+     */
+    public abstract byte[] getPrivateKeyAsByteArray();
+    
+    /**
+     * Sets the private key to the key given in privateKeyBytes.
+     * If Cipherer.generateKey has been called before, the generated private key will be overwritten.
+     * If Cipherer.generateKey has not been called, only encryption and decryption with the private key is possible.
+     * @param publicKeyBytes The new private key as array of bytes
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeySpecException
+     */
+    public abstract void setPrivateKeyFromByteArray(byte[] privateKeyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException;
 }
