@@ -20,19 +20,22 @@ import de.uniluebeck.itm.ncoap.message.MessageType;
  * 
  * A registration of a data origin is answered with a observe request.
  * 
- * All data that arrives from the data origin is passed to the smart service proxy.
+ * All data that arrives from the data origin is forwarded to the smart service proxy.
  */
 public class Controller extends CoapClientApplication {
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
+    //TODO: implement the answer to a register request
+    //TODO: implement forwarding to smart service proxy
+    
     public Controller() {
-        
+        super();
     }
     
     public void start() {
         String host = "127.0.0.1";
-        int port = 5683;
+        int port = 5684;
         String path = "/sensor1";
         
         log.info("send observe request to " + host + ":" + port + " with path " + path);
