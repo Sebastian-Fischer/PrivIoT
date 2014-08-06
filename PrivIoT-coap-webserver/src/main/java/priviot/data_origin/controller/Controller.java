@@ -7,7 +7,7 @@ import priviot.data_origin.sensor.SensorObserver;
 /**
  * Superclass for all Controllers.
  * 
- * The Controller connects Sensor with and Service.
+ * The Controller connects Sensor and Service.
  * Therefore it registers itself as a SensorObserver at the Sensor.
  * Every Data that is received from the Sensor is published to the Service.
  * 
@@ -35,6 +35,11 @@ public abstract class Controller implements SensorObserver {
 		
 		sensorThread.start();
 	}
+	
+	/**
+	 * Registers the webservice at a server, e.g. the CoAP Proxy.
+	 */
+	public abstract void registerAtServer();
 	
 	/**
 	 * Receives RDFData from the Sensor.

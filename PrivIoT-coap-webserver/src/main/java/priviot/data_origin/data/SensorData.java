@@ -1,5 +1,7 @@
 package priviot.data_origin.data;
 
+import com.hp.hpl.jena.rdf.model.Model;
+
 /**
  * Superclass for a data set of a sensor.
  */
