@@ -1,6 +1,6 @@
-package priviot.data_origin.sensor;
+package priviot.coapwebserver.sensor;
 
-import priviot.data_origin.data.SensorData;
+import priviot.coapwebserver.data.SensorData;
 
 /**
  * Interface for classes, that need to observe a Sensor.

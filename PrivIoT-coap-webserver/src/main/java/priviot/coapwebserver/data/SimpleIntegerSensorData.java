@@ -1,4 +1,4 @@
-package priviot.data_origin.data;
+package priviot.coapwebserver.data;
 
 /**
  * Sensor data set with a simple integer

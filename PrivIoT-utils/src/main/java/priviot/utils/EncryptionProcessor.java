@@ -27,16 +27,18 @@ public abstract class EncryptionProcessor {
      * The content is symmetrically encrypted with the given algorithm and key size.
      * The used symmetric key and initialization vector are encrypted asymmetrically with given algorithm and key size.
      * For asymmetric Encryption, the public key of the recipient is needed.
-     * @param content
-     * @param symmetricEncryptionAlgorithm
-     * @param symmetricEncryptionKeySize
-     * @param asymmetricEncryptionAlgorithm
-     * @param asymmetricEncryptionKeySize
-     * @param publicKeyRecipient
+     * @param content                         Content of data package.
+     * @param contentLifetime                 Lifetime of the content in seconds.
+     * @param symmetricEncryptionAlgorithm    algorithm for symmetric encryption (e.g. "AES/ECB/PKSC5Padding")
+     * @param symmetricEncryptionKeySize      key size for symmetric encryption
+     * @param asymmetricEncryptionAlgorithm   algorithm for symmetric encryption (e.g. "RSA/CBC/PKSC1Padding")
+     * @param asymmetricEncryptionKeySize     key size for asymmetric encryption
+     * @param publicKeyRecipient              public key of the recipient
      * @return
      * @throws EncryptionException
      */
     public static EncryptedSensorDataPackage createEncryptedDataPackage(String content, 
+            int contentLifetime,
             String symmetricEncryptionAlgorithm, int symmetricEncryptionKeySize, 
             String asymmetricEncryptionAlgorithm, int asymmetricEncryptionKeySize,
             byte[] publicKeyRecipient) throws EncryptionException {
@@ -114,6 +116,7 @@ public abstract class EncryptionProcessor {
         dataPackage.setAsymmetricEncryptionBitStrength(asymmetricEncryptionKeySize);
         dataPackage.setSymmetricEncryptionMethod(symmetricCipherer.getUsedAlgorithm());
         dataPackage.setSymmetricEncryptionBitStrength(symmetricEncryptionKeySize);
+        dataPackage.setContentLifetime(contentLifetime);
         dataPackage.setEncryptedContent(ciphertext);
         dataPackage.setEncryptedInitializationVector(encryptedInitializationVector);
         dataPackage.setEncryptedKey(encryptedKey);

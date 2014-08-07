@@ -1,4 +1,4 @@
-package priviot.data_origin.service;
+package priviot.coapwebserver.service;
 
 import java.net.URI;
 import java.security.cert.X509Certificate;

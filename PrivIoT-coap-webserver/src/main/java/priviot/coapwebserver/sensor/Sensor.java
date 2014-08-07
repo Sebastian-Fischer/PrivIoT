@@ -1,9 +1,14 @@
-package priviot.data_origin.sensor;
+package priviot.coapwebserver.sensor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import priviot.data_origin.data.SensorData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import priviot.coapwebserver.data.SensorData;
 
 /**
  * Superclass for all Sensors.
@@ -13,9 +18,13 @@ import priviot.data_origin.data.SensorData;
  * A child class has to set updateFrequency and sensorURI.
  * A child class has to implement getAndPublicSensorData.
  */
-public abstract class Sensor implements Runnable {
+public abstract class Sensor {
 	/** List of Observers for the Sensor */
 	private List<SensorObserver> observers = new ArrayList<SensorObserver>();
+	
+	private ScheduledExecutorService scheduledExecutorService;
+	
+	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 	
 	/**
 	 * Specifies the frequency in which updates of RDFData will be published by this Sensor.
@@ -24,6 +33,10 @@ public abstract class Sensor implements Runnable {
 	private int updateFrequency = 0;
 	
 	private String sensorURI = "";
+	
+	protected void setScheduledExecutorService(ScheduledExecutorService scheduledExecutorService) {
+	    this.scheduledExecutorService = scheduledExecutorService;
+	}
 	
 	/**
 	 * Adds an observer to the Sensor.
@@ -70,18 +83,28 @@ public abstract class Sensor implements Runnable {
 		this.sensorURI = sensorURI;
 	}
 	
-	@Override
-	public void run() {
-		while(true) {
-			getAndPublishSensorData();
-			
-			try {
-				Thread.sleep(updateFrequency * 1000);
-			} catch (InterruptedException e) {
-				System.out.println("Sensor: Thread interrupted.");
-			}
-		}
-	}
+	/**
+	 * Starts the sensor.
+	 * From this moment on it will publish sensor values all updateFrequency seconds.
+	 */
+	public void start() {
+	    if (scheduledExecutorService == null) {
+	        log.error("scheduledExecutorService not initialized. Can't start Sensor");
+	    }
+	    
+	    scheduledExecutorService.scheduleAtFixedRate(new Runnable(){
+
+            @Override
+            public void run() {
+                try{
+                    getAndPublishSensorData();
+                }
+                catch(Exception e){
+                    log.error("Exception while updating sensor value", e);
+                }
+            }
+        },0, updateFrequency, TimeUnit.SECONDS);
+    }
 	
 	/**
 	 * Notifies the registered observers and publishes the new data to them.

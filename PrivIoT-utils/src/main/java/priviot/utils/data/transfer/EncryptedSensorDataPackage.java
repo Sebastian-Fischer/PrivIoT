@@ -33,6 +33,9 @@ public class EncryptedSensorDataPackage {
     /** Bit strength used with symmetricEncryptionMethod to encrypt the content */
     private int symmetricEncryptionBitStrength = 0;
     
+    /** The lifetime of the content in seconds */
+    private int contentLifetime = 0;
+    
     /** 
      * The content, encrypted with the symmetric key using encrpytionMethod  
      */
@@ -124,6 +127,14 @@ public class EncryptedSensorDataPackage {
         this.encryptedKey = encryptedKey;
     }
     
+    public int getContentLifetime() {
+        return contentLifetime;
+    }
+
+    public void setContentLifetime(int contentLifetime) {
+        this.contentLifetime = contentLifetime;
+    }
+    
     /**
      * Returns the data of the object as byte array in the following form:
      * <encrypted>
@@ -131,12 +142,14 @@ public class EncryptedSensorDataPackage {
      *   <asymmetricEncryptionBitStrength>[asymmetricEncryptionBitStrength]</asymmetricEncryptionBitStrength>
      *   <symmetricEncryptionMethod>[symmetricEncryptionMethod]</symmetricEncryptionMethod>
      *   <symmetricEncryptionBitStrength>[symmetricEncryptionBitStrength]</symmetricEncryptionBitStrength>
+     *   <contentLifetime>[contentLifetime]<contentLifetime>
      *   <encryptedContent>[encryptedContent]</encryptedContent>
      *   <encryptedInitializationVector>[encryptedInitializationVector]</encryptedInitializationVector>
      *   <encryptedKey>[encryptedKey]</encryptedKey>
      * </encrypted>
      * Here <name> is a XML-Tag and [name] is the content of an attribute.
      * @return
+     * @throws DOMException
      */
     public String toXMLString() throws DOMException {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -167,6 +180,10 @@ public class EncryptedSensorDataPackage {
         elementSymmetricEncryptionBitStrength.appendChild( document.createTextNode(String.valueOf(symmetricEncryptionBitStrength)) );
         rootElement.appendChild(elementSymmetricEncryptionBitStrength);
         
+        Element elementContentLifetime = document.createElement("contentLifetime");
+        elementContentLifetime.appendChild( document.createTextNode(Integer.toString(contentLifetime)));
+        rootElement.appendChild(elementContentLifetime);
+        
         Element elementEncryptedContent = document.createElement("encryptedContent");
         elementEncryptedContent.appendChild( document.createTextNode(Base64.encodeBase64String(encryptedContent)) );
         rootElement.appendChild(elementEncryptedContent);
@@ -191,13 +208,14 @@ public class EncryptedSensorDataPackage {
      *   <asymmetricEncryptionBitStrength>[asymmetricEncryptionBitStrength]</asymmetricEncryptionBitStrength>
      *   <symmetricEncryptionMethod>[symmetricEncryptionMethod]</symmetricEncryptionMethod>
      *   <symmetricEncryptionBitStrength>[symmetricEncryptionBitStrength]</symmetricEncryptionBitStrength>
+     *   <contentLifetime>[contentLifetime]<contentLifetime>
      *   <encryptedContent>[encryptedContent]</encryptedContent>
      *   <encryptedInitializationVector>[encryptedInitializationVector]</encryptedInitializationVector>
      *   <encryptedKey>[encryptedKey]</encryptedKey>
      * </encrypted>
      * Here <name> is a XML-Tag and [name] is the content of an attribute.
      * @param xmlString
-     * @throws SAXException, NumberFormatException
+     * @throws SAXException, NumberFormatException, DataPackageParsingException
      */
     private boolean fromXMLString(String xmlString) throws SAXException, 
      NumberFormatException, DataPackageParsingException {
@@ -245,13 +263,16 @@ public class EncryptedSensorDataPackage {
         if (!"symmetricEncryptionBitStrength".equals(rootElement.getChildNodes().item(3).getNodeName())) {
             throw new DataPackageParsingException("Excepted node symmetricEncryptionBitStrength");
         }
-        if (!"encryptedContent".equals(rootElement.getChildNodes().item(4).getNodeName())) {
+        if (!"contentLifetime".equals(rootElement.getChildNodes().item(4).getNodeName())) {
+            throw new DataPackageParsingException("Excepted node contentLifetime");
+        }
+        if (!"encryptedContent".equals(rootElement.getChildNodes().item(5).getNodeName())) {
             throw new DataPackageParsingException("Excepted node encryptedContent");
         }
-        if (!"encryptedInitializationVector".equals(rootElement.getChildNodes().item(5).getNodeName())) {
+        if (!"encryptedInitializationVector".equals(rootElement.getChildNodes().item(6).getNodeName())) {
             throw new DataPackageParsingException("Excepted node encryptedInitializationVector");
         }
-        if (!"encryptedKey".equals(rootElement.getChildNodes().item(6).getNodeName())) {
+        if (!"encryptedKey".equals(rootElement.getChildNodes().item(7).getNodeName())) {
             throw new DataPackageParsingException("Excepted node encryptedKey");
         }
         
@@ -259,9 +280,10 @@ public class EncryptedSensorDataPackage {
         Node elementAsymmetricEncryptionBitStrength = rootElement.getChildNodes().item(1);
         Node elementSymmetricEncryptionMethod = rootElement.getChildNodes().item(2);
         Node elementSymmetricEncryptionBitStrength = rootElement.getChildNodes().item(3);
-        Node elementEncryptedContent = rootElement.getChildNodes().item(4);
-        Node elementEncryptedIV = rootElement.getChildNodes().item(5);
-        Node elementEncryptedKey = rootElement.getChildNodes().item(6);
+        Node elementContentLifetime = rootElement.getChildNodes().item(4);
+        Node elementEncryptedContent = rootElement.getChildNodes().item(5);
+        Node elementEncryptedIV = rootElement.getChildNodes().item(6);
+        Node elementEncryptedKey = rootElement.getChildNodes().item(7);
         
         if (elementAsymmetricEncryptionMethod.getChildNodes().getLength() > 1) {
             throw new DataPackageParsingException("Unexpected content in node asymmetricEncryptionMethod");
@@ -274,6 +296,9 @@ public class EncryptedSensorDataPackage {
         }
         if (elementSymmetricEncryptionBitStrength.getChildNodes().getLength() != 1) {
             throw new DataPackageParsingException("Unexpected content in node symmetricEncryptionBitStrength");
+        }
+        if (elementContentLifetime.getChildNodes().getLength() != 1) {
+            throw new DataPackageParsingException("Unexpected content in node contentLifetime");
         }
         if (elementEncryptedContent.getChildNodes().getLength() != 1) {
             throw new DataPackageParsingException("Unexpected content in node encryptedContent");
@@ -289,6 +314,7 @@ public class EncryptedSensorDataPackage {
         asymmetricEncryptionBitStrength = Integer.parseInt(elementAsymmetricEncryptionBitStrength.getTextContent());
         symmetricEncryptionMethod = elementSymmetricEncryptionMethod.getTextContent();
         symmetricEncryptionBitStrength = Integer.parseInt(elementSymmetricEncryptionBitStrength.getTextContent());
+        contentLifetime = Integer.parseInt(elementContentLifetime.getTextContent());
         encryptedContent = Base64.decodeBase64(elementEncryptedContent.getTextContent());
         encryptedInitializationVector = Base64.decodeBase64(elementEncryptedIV.getTextContent());
         encryptedKey = Base64.decodeBase64(elementEncryptedKey.getTextContent());

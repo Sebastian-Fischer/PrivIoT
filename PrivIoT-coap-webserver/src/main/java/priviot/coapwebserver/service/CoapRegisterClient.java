@@ -1,4 +1,4 @@
-package priviot.data_origin.service;
+package priviot.coapwebserver.service;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -12,13 +12,13 @@ import java.util.Observer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import priviot.data_origin.data.KeyDatabaseEntry;
-import priviot.utils.data.transfer.PrivIoTContentFormat;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
+
+import priviot.utils.data.transfer.PrivIoTContentFormat;
 
 /**
  * This component has two tasks to perform:
@@ -58,6 +58,7 @@ public class CoapRegisterClient implements Observer {
     public CoapRegisterClient(CoapClientApplication coapClientApplication,
             String urlSSP, int portSSP, String urlCPP, int portCPP) {
         
+        this.coapClientApplication = coapClientApplication;
         this.urlSSP = urlSSP;
         this.portSSP = portSSP;
         this.urlCPP = urlCPP;
@@ -138,7 +139,7 @@ public class CoapRegisterClient implements Observer {
         if (coapResponse.getContentFormat() == PrivIoTContentFormat.APP_X509CERTIFICATE) {
             //TODO: parse X509Certificate
             // maybe like this: http://www.oracle.com/technetwork/articles/javase/dig-signature-api-140772.html
-            X509Certificate certificate;
+            X509Certificate certificate = null;
             
             if (observer != null) {
                 observer.receivedCertificate(locationUri, certificate);

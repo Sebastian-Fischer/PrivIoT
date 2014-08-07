@@ -1,14 +1,19 @@
-package priviot.data_origin;
+package priviot.coapwebserver;
 
 import org.apache.log4j.Logger;
 
-import priviot.data_origin.controller.RDFSimpleIntegerSensorCoapController;
+import priviot.coapwebserver.controller.CoapWebserverController;
 
 public class DataOriginMain {
 
 	private static String version = "0.1";
 	
 	private static Logger log = Logger.getLogger(DataOriginMain.class.getName());
+	
+	private static String urlSSP = "localhost";
+	private static int portSSP = 8080;
+	private static String urlCPP = "localhost";
+	private static int portCPP = 8081;
 	
 	public static void main(String[] args) {
 		System.out.println("PrivIoT - Data Origin (version " + version + ")");
@@ -18,7 +23,7 @@ public class DataOriginMain {
 		System.out.println("Configure logging: done");		
 		
 		log.info("start controller");
-		initializeSimpleIntegerCoapController();
+		startController();
 		log.info("start controller: done");
 	}
 	
@@ -26,12 +31,10 @@ public class DataOriginMain {
 		org.apache.log4j.BasicConfigurator.configure();
 	}
 	
-	private static void initializeSimpleIntegerCoapController() {
-		RDFSimpleIntegerSensorCoapController controller = new RDFSimpleIntegerSensorCoapController();
-		
-		controller.initialize();
-		
-		controller.start();
+	private static void startController() {
+	    CoapWebserverController controller = new CoapWebserverController(urlSSP, portSSP, urlCPP, portCPP);
+	    
+	    controller.start();
 	}
 
 }

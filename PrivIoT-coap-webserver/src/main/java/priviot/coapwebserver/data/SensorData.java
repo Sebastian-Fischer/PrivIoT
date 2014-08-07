@@ -1,4 +1,4 @@
-package priviot.data_origin.data;
+package priviot.coapwebserver.data;
 
 import com.hp.hpl.jena.rdf.model.Model;
 

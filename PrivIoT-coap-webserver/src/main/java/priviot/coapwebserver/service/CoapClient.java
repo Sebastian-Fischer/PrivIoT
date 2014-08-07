@@ -1,4 +1,4 @@
-package priviot.data_origin.service;
+package priviot.coapwebserver.service;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.application.client.Token;

@@ -1,4 +1,4 @@
-package priviot.data_origin.service;
+package priviot.coapwebserver.service;
 
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
@@ -13,24 +13,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
-import priviot.data_origin.data.KeyDatabase;
-import priviot.data_origin.data.KeyDatabaseEntry;
-import priviot.data_origin.data.SensorData;
-import priviot.data_origin.data.SimpleIntegerSensorData;
-import priviot.data_origin.sensor.SensorObserver;
-import priviot.utils.EncryptionProcessor;
-import priviot.utils.data.EncryptionParameters;
-import priviot.utils.data.transfer.EncryptedSensorDataPackage;
-import priviot.utils.data.transfer.PrivIoTContentFormat;
-import priviot.utils.encryption.EncryptionException;
-
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.vocabulary.OWL;
 
 import de.uniluebeck.itm.ncoap.application.client.Token;
 import de.uniluebeck.itm.ncoap.application.server.webservice.ObservableWebservice;
@@ -43,6 +28,14 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
 import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
+import priviot.utils.EncryptionProcessor;
+import priviot.utils.data.EncryptionParameters;
+import priviot.utils.data.transfer.EncryptedSensorDataPackage;
+import priviot.utils.data.transfer.PrivIoTContentFormat;
+import priviot.utils.encryption.EncryptionException;
+import priviot.coapwebserver.data.JenaRdfModelWithLifetime;
+import priviot.coapwebserver.data.KeyDatabase;
+import priviot.coapwebserver.data.KeyDatabaseEntry;
 
 /**
  * Webservice over the COAP protocol.
@@ -50,17 +43,14 @@ import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
  * 
  * The COAPWebservice is observable for clients.
  */
-public class CoapSensorWebservice  extends ObservableWebservice<Model> {
+public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWithLifetime> {
 	public static long DEFAULT_CONTENT_FORMAT = PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML;
 	
 	private Logger log = Logger.getLogger(this.getClass().getName());
-	private ScheduledFuture periodicUpdateFuture;
 
     private Map<Long, String> templates;
     
     private long updateIntervalMillis;
-    
-    private Model rdfSensorData;
     
     private EncryptionParameters encryptionParameters;
     
@@ -105,9 +95,9 @@ public class CoapSensorWebservice  extends ObservableWebservice<Model> {
         this.keyDatabase = keyDatabase;
     }
     
-    public void updateRdfSensorData(Model rdfSensorData) {
-    	log.info("update sensor data: " + rdfSensorData);
-    	this.rdfSensorData = rdfSensorData;
+    public void updateRdfSensorData(JenaRdfModelWithLifetime rdfSensorData) {
+    	log.info("update sensor data");
+    	setResourceStatus(rdfSensorData, updateIntervalMillis / 1000);
     }
     
     private void addContentFormat(long contentFormat, String template){
@@ -118,7 +108,6 @@ public class CoapSensorWebservice  extends ObservableWebservice<Model> {
     @Override
     public void setScheduledExecutorService(ScheduledExecutorService executorService){
         super.setScheduledExecutorService(executorService);
-        schedulePeriodicResourceUpdate();
     }
 
     @Override
@@ -138,25 +127,8 @@ public class CoapSensorWebservice  extends ObservableWebservice<Model> {
 
 
     @Override
-    public void updateEtag(Model resourceStatus) {
+    public void updateEtag(JenaRdfModelWithLifetime resourceStatus) {
         //nothing to do here...
-    }
-
-
-    private void schedulePeriodicResourceUpdate(){
-        this.periodicUpdateFuture = getScheduledExecutorService().scheduleAtFixedRate(new Runnable(){
-
-            @Override
-            public void run() {
-                try{
-                    setResourceStatus(rdfSensorData, updateIntervalMillis / 1000);
-                    log.info("New status of resource " + getPath() + ": " + getResourceStatus());
-                }
-                catch(Exception ex){
-                    log.error("Exception while updating status...", ex);
-                }
-            }
-        },0, updateIntervalMillis, TimeUnit.MILLISECONDS);
     }
 
 
@@ -243,8 +215,6 @@ public class CoapSensorWebservice  extends ObservableWebservice<Model> {
     @Override
     public void shutdown() {
         log.info("Shutdown service " + getPath() + ".");
-        boolean futureCanceled = this.periodicUpdateFuture.cancel(true);
-        log.info("Future canceled: " + futureCanceled);
     }
 
 
@@ -262,7 +232,8 @@ public class CoapSensorWebservice  extends ObservableWebservice<Model> {
             contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_TURTLE) {
             
             
-            Model rdfModel = getResourceStatus();
+            Model rdfModel = getResourceStatus().getRdfModel();
+            int lifetime = getResourceStatus().getLifetime();
             
             String language;
             if (contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML) {
@@ -303,6 +274,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<Model> {
             try {
                 encryptedSensorDataPackage = 
                         EncryptionProcessor.createEncryptedDataPackage(rdfModelStr, 
+                                                               lifetime,
                                                                encryptionParameters.getAsymmetricEncryptionAlgorithm(),
                                                                encryptionParameters.getAsymmetricEncryptionKeySize(),
                                                                encryptionParameters.getSymmetricEncryptionAlgorithm(),

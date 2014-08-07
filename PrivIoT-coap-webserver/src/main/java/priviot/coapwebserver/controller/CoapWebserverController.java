@@ -1,18 +1,18 @@
-package priviot.data_origin.controller;
+package priviot.coapwebserver.controller;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
@@ -21,22 +21,17 @@ import com.hp.hpl.jena.vocabulary.OWL;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.MessageCode;
-import de.uniluebeck.itm.ncoap.message.MessageType;
-import priviot.data_origin.data.KeyDatabase;
-import priviot.data_origin.data.KeyDatabaseEntry;
-import priviot.data_origin.data.SensorData;
-import priviot.data_origin.data.SimpleIntegerSensorData;
-import priviot.data_origin.sensor.Sensor;
-import priviot.data_origin.sensor.SensorObserver;
-import priviot.data_origin.sensor.SimpleIntegerSensor;
-import priviot.data_origin.service.CoapClient;
-import priviot.data_origin.service.CoapRegisterClient;
-import priviot.data_origin.service.CoapRegisterClientObserver;
-import priviot.data_origin.service.CoapSensorWebservice;
-import priviot.utils.data.transfer.PrivIoTContentFormat;
+import priviot.coapwebserver.data.JenaRdfModelWithLifetime;
+import priviot.coapwebserver.data.KeyDatabase;
+import priviot.coapwebserver.data.KeyDatabaseEntry;
+import priviot.coapwebserver.data.SensorData;
+import priviot.coapwebserver.data.SimpleIntegerSensorData;
+import priviot.coapwebserver.sensor.Sensor;
+import priviot.coapwebserver.sensor.SensorObserver;
+import priviot.coapwebserver.sensor.SimpleIntegerSensor;
+import priviot.coapwebserver.service.CoapRegisterClient;
+import priviot.coapwebserver.service.CoapRegisterClientObserver;
+import priviot.coapwebserver.service.CoapSensorWebservice;
 
 /**
  * Main controller class of the CoAP-Webserver.
@@ -51,6 +46,8 @@ import priviot.utils.data.transfer.PrivIoTContentFormat;
  * {@link CoapSensorWebservice}-instances.
  */
 public class CoapWebserverController implements SensorObserver, CoapRegisterClientObserver {
+    
+    private static final int NUMBER_OF_THREADS = 1;
     
     /** Port the coap application listens to */
     private static final int OWN_PORT = 5684;
@@ -85,7 +82,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      * Constructor.
      * 
      * Starts Sensors and Webservices and connects them.
-     * Sends Certificate request to SSP.
+     * Starts the coap components.
      * 
      * @param urlSSP   The host url of the Smart Service Proxy
      * @param portSSP  The port of the Smart Service Proxy
@@ -96,12 +93,20 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         coapServerApplication = new CoapServerApplication(OWN_PORT);
         coapClientApplication = new CoapClientApplication();
         
+        sensors = new ArrayList<Sensor>();
+        coapSensorWebservices = new ArrayList<CoapSensorWebservice>();
+        
         createSensorsAndWebservices();
         
         keyDatabase = new KeyDatabase();
         
         coapRegisterClient = new CoapRegisterClient(coapClientApplication, urlSSP, portSSP, urlCPP, portCPP);
-        
+    }
+    
+    /**
+     * Starts the processing of the application by sending the certificate request to SSP.
+     */
+    public void start() {
         try {
             coapRegisterClient.sendCertificateRequest();
         } catch (UnknownHostException | URISyntaxException e) {
@@ -110,7 +115,11 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     }
     
     private void createSensorsAndWebservices() {
-        SimpleIntegerSensor sensor1 = new SimpleIntegerSensor(SENSOR1_URI, SENSOR1_UPDATE_FREQUENCY);
+        // Create a thread pool that executes the sensor processing
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("CoAP Webserver Sensor Thread#%d").build();
+        ScheduledThreadPoolExecutor executorService = new ScheduledThreadPoolExecutor(NUMBER_OF_THREADS, threadFactory);
+        
+        SimpleIntegerSensor sensor1 = new SimpleIntegerSensor(SENSOR1_URI, SENSOR1_UPDATE_FREQUENCY, executorService);
         sensor1.addObserver(this);
         
         CoapSensorWebservice coapWebservice1 = new CoapSensorWebservice(SENSOR1_URI, SENSOR1_UPDATE_FREQUENCY);
@@ -119,6 +128,9 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         coapSensorWebservices.add(coapWebservice1);
         
         coapServerApplication.registerService(coapWebservice1);
+        
+        // let the sensor work
+        sensor1.start();
     }
     
     
@@ -136,11 +148,15 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         // cast sensor data
         SimpleIntegerSensorData simpleIntegerSensorData = (SimpleIntegerSensorData)data;
         
+        log.info("new sensor data available for " + data.getSensorURI() + ": " + simpleIntegerSensorData.getData());
+        
         // transform data to apache jena RDF model
         Model model = ModelFactory.createDefaultModel();
         Resource sensor1 = model.createResource(HOST_URI + data.getSensorURI());
         Statement s = model.createLiteralStatement(sensor1, OWL.hasValue, simpleIntegerSensorData.getData());
         model.add(s);
+        
+        JenaRdfModelWithLifetime modelWithLifetime = new JenaRdfModelWithLifetime(model, simpleIntegerSensorData.getLifetime());
         
         CoapSensorWebservice webservice = findWebservice(data.getSensorURI());
         
@@ -149,7 +165,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
             return;
         }
         
-        webservice.updateRdfSensorData(model);
+        webservice.updateRdfSensorData(modelWithLifetime);
     }
     
     private CoapSensorWebservice findWebservice(String sensorURI) {

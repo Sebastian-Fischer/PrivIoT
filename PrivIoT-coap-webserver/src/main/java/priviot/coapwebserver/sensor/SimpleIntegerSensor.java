@@ -1,6 +1,8 @@
-package priviot.data_origin.sensor;
+package priviot.coapwebserver.sensor;
 
-import priviot.data_origin.data.SimpleIntegerSensorData;
+import java.util.concurrent.ScheduledExecutorService;
+
+import priviot.coapwebserver.data.SimpleIntegerSensorData;
 
 /**
  * A Sensor with a simple integer as sensor data.
@@ -17,7 +19,8 @@ public class SimpleIntegerSensor extends Sensor {
 	 * @param sensorURI The URI of the Sensor
 	 * @param updateFrequency The frequency in seconds in which new values are created and published
 	 */
-	public SimpleIntegerSensor(String sensorURI, int updateFrequency) {
+	public SimpleIntegerSensor(String sensorURI, int updateFrequency, ScheduledExecutorService executorService) {
+	    setScheduledExecutorService(executorService);
 		setSensorURI(sensorURI);
 		setUpdateFrequency(updateFrequency);
 		

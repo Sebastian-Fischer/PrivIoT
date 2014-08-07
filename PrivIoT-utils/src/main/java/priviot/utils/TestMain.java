@@ -201,13 +201,7 @@ public class TestMain {
         cipherer.generateKey();
         Date endGen = new Date();
         
-        byte[] keyBytes;
-        try {
-            keyBytes = cipherer.getKeyAsByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Exception during getPublicKeyAsByteArray: " + e.getMessage());
-            return false;
-        }
+        byte[] keyBytes = cipherer.getKeyAsByteArray();
         
         System.out.println("initialized cipherer with keysize " + keysize + " Bit in " + (endInit.getTime() - startInit.getTime()) + " ms");
         System.out.println("generated " + keysize + " Bit Key (In praxis " + (keyBytes.length * 8) + " Bit) in " + (endGen.getTime() - startGen.getTime()) + " ms");
@@ -288,21 +282,9 @@ public class TestMain {
         dataPackage.setSymmetricEncryptionBitStrength(keysize);
         
         
-        byte[] keyBytes;
-        byte[] ivBytes;
         byte[] ciphertext;
-        try {
-            keyBytes = aesCipherer.getKeyAsByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Exception during getPublicKeyAsByteArray: " + e.getMessage());
-            return false;
-        }
-        try {
-            ivBytes = aesCipherer.getIvAsByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Exception during getIvAsByteArray: " + e.getMessage());
-            return false;
-        }
+        byte[] keyBytes = aesCipherer.getKeyAsByteArray();
+        byte[] ivBytes = aesCipherer.getIvAsByteArray();
         try {
             ciphertext = aesCipherer.encrypt(plaintextIn);
         } catch (InvalidKeyException | IllegalBlockSizeException
@@ -453,13 +435,7 @@ public class TestMain {
         cipherer.generateKey();
         Date endGen = new Date();
         
-        byte[] publicKeyBytes;
-        try {
-            publicKeyBytes = cipherer.getPublicKeyAsByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Exception during getPublicKeyAsByteArray: " + e.getMessage());
-            return false;
-        }
+        byte[] publicKeyBytes = cipherer.getPublicKeyAsByteArray();
         
         System.out.println("inititlized cipherer with keysize " + keysize + " Bit in " + (endInit.getTime() - startInit.getTime()) + " ms");
         System.out.println("generated " + keysize + " Bit Public Key (In praxis " + (publicKeyBytes.length * 8) + " Bit) in " + (endGen.getTime() - startGen.getTime()) + " ms");
@@ -511,12 +487,7 @@ public class TestMain {
         
         rsaCipherer2.generateKey();
         
-        byte[] rsaPublicKey = new byte[0];
-        try {
-            rsaPublicKey = rsaCipherer2.getPublicKeyAsByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Excpetion during get public key at recipient: " + e.getMessage());
-        }
+        byte[] rsaPublicKey = rsaCipherer2.getPublicKeyAsByteArray();
         
         try {
             rsaCipherer.initialize(rsaKeysize);
@@ -545,13 +516,7 @@ public class TestMain {
         
         aesCipherer.generateKey();
 
-        byte[] key = new byte[0];
-        try {
-            key = aesCipherer.getKeyAsByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Exception during get key: " + e.getMessage());
-            return false;
-        }
+        byte[] key = aesCipherer.getKeyAsByteArray();
         
         System.out.println("Key: '" + Arrays.toString(key) + "'");
         System.out.println("will be encrypted with " + rsaCipherer.getUsedAlgorithm() + " with keysize " + rsaKeysize);
@@ -572,14 +537,9 @@ public class TestMain {
         dataPackage.setSymmetricEncryptionMethod(aesCipherer.getUsedAlgorithm());
         dataPackage.setSymmetricEncryptionBitStrength(keysize);
         
-        byte[] ivBytes;
+        
+        byte[] ivBytes = aesCipherer.getIvAsByteArray();
         byte[] ciphertext;
-        try {
-            ivBytes = aesCipherer.getIvAsByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println("Exception during getIvAsByteArray: " + e.getMessage());
-            return false;
-        }
         try {
             ciphertext = aesCipherer.encrypt(plaintextIn);
         } catch (InvalidKeyException | IllegalBlockSizeException

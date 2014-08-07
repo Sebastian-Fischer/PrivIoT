@@ -1,4 +1,4 @@
-package priviot.data_origin.data;
+package priviot.coapwebserver.data;
 
 import java.util.ArrayList;
 import java.util.List;
