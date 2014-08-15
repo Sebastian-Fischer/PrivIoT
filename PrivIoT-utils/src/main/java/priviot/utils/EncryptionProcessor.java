@@ -58,8 +58,11 @@ public abstract class EncryptionProcessor {
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new EncryptionException("Symmetric algorithm not supported: " + symmetricEncryptionAlgorithm, e);
         }
+        if (symmetricCipherer == null) {
+            throw new EncryptionException("Symmetric algorithm not supported: " + symmetricEncryptionAlgorithm);
+        }
         try {
-            symmetricCipherer.initialize(symmetricEncryptionKeySize);
+            symmetricCipherer.initialize(symmetricEncryptionKeySize); //TODO: null pointer exception
         } catch (InvalidAlgorithmParameterException e) {
             throw new EncryptionException("Keysize for symmetric encryption not supported: " + symmetricEncryptionKeySize, e);
         }
@@ -70,10 +73,18 @@ public abstract class EncryptionProcessor {
         catch (NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
             throw new EncryptionException("Asymmetric algorithm not supported: " + asymmetricEncryptionAlgorithm, e);
         }
+        if (asymmetricCipherer == null) {
+            throw new EncryptionException("Asymmetric algorithm not supported: " + asymmetricEncryptionAlgorithm);
+        }
         try {
             asymmetricCipherer.initialize(asymmetricEncryptionKeySize);
         } catch (InvalidAlgorithmParameterException e) {
             throw new EncryptionException("Keysize for asymmetric encryption not supported: " + asymmetricEncryptionKeySize, e);
+        }
+        try {
+            asymmetricCipherer.setPublicKeyFromByteArray(publicKeyRecipient);
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            throw new EncryptionException("Invalid public key of recipient", e);
         }
         
         // generate key and get is as byte-array
@@ -107,7 +118,7 @@ public abstract class EncryptionProcessor {
         } catch (InvalidKeyException | IllegalBlockSizeException
                 | BadPaddingException | ShortBufferException
                 | InvalidAlgorithmParameterException e) {
-            throw new EncryptionException("Error during asymmetric encryption of symmetric key", e);
+            throw new EncryptionException("Error during asymmetric encryption of initialization vector", e);
         }
         
         // build data package

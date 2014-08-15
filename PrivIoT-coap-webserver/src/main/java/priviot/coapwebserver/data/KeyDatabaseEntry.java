@@ -1,13 +1,15 @@
 package priviot.coapwebserver.data;
 
+import java.net.URI;
+
 /**
  * An entry in the KeyDatabase.
  * Contains the URL of a Smart Service Proxy and it's public key
  */
 public class KeyDatabaseEntry {
     
-    /** The URL */
-    private String url = "";
+    /** The URI */
+    private URI uri;
     
     /** The public key */
     private byte[] publicKey = new byte[0];
@@ -16,18 +18,18 @@ public class KeyDatabaseEntry {
     private String encryptionAlgorithm = "";
     
     
-    public KeyDatabaseEntry(String url, byte[] publicKey) {
-        this.url = url;
+    public KeyDatabaseEntry(URI uri, byte[] publicKey) {
+        this.uri = uri;
         this.publicKey = publicKey;
     }
     
     
-    public String getURL() {
-        return url;
+    public URI getURI() {
+        return uri;
     }
     
-    public void setURL(String url) {
-        this.url = url;
+    public void setURI(URI uri) {
+        this.uri = uri;
     }
     
     public byte[] getPublicKey() {

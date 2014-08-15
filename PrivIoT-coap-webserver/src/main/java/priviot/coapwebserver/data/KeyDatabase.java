@@ -1,5 +1,6 @@
 package priviot.coapwebserver.data;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,7 +22,7 @@ public class KeyDatabase {
      * @param entry
      */
     public void addEntry(KeyDatabaseEntry entry) {
-        if (entry == null || entry.getURL() == null) {
+        if (entry == null || entry.getURI() == null) {
             return;
         }
         
@@ -33,9 +34,9 @@ public class KeyDatabase {
      * @param url
      * @return
      */
-    public KeyDatabaseEntry getEntry(String url) {
+    public KeyDatabaseEntry getEntry(URI url) {
         for (KeyDatabaseEntry entry : entries) {
-            if (entry.getURL().equals(url)) {
+            if (entry.getURI().getHost().equals(url.getHost())) {
                 return entry;
             }
         }
@@ -47,11 +48,11 @@ public class KeyDatabase {
      * Returns a list containing the URLs of all database entries.
      * @return
      */
-    public List<String> getAllEntryUrls() {
-        List<String> list = new ArrayList<String>();
+    public List<URI> getAllEntryUrls() {
+        List<URI> list = new ArrayList<URI>();
         
         for (KeyDatabaseEntry entry : entries) {
-            list.add(entry.getURL());
+            list.add(entry.getURI());
         }
         
         return list;

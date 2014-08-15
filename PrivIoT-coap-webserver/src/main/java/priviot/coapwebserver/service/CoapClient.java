@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Observable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *    As reaction the proxy will register itself as observer at the sensor webservices.
  * 2. Get the X.509 certificate of a Smart Service Proxy to get the public key.
  */
-public class CoapClient extends Observable implements CoapResponseProcessor, TransmissionInformationProcessor,
+public class CoapClient implements CoapResponseProcessor, TransmissionInformationProcessor,
         RetransmissionTimeoutProcessor {
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -30,12 +32,26 @@ public class CoapClient extends Observable implements CoapResponseProcessor, Tra
     private AtomicBoolean responseReceived;
     private AtomicInteger transmissionCounter;
     private AtomicBoolean timedOut;
+    
+    private List<CoapClientObserver> observers = new ArrayList<CoapClientObserver>();
 
 
     public CoapClient(){
         this.responseReceived = new AtomicBoolean(false);
         this.transmissionCounter = new AtomicInteger(0);
         this.timedOut = new AtomicBoolean(false);
+    }
+    
+    public void addObserver(CoapClientObserver observer) {
+        observers.add(observer);
+    }
+    
+    public void notifyObservers(CoapResponse coapResponse) {
+        for (CoapClientObserver observer : observers) {
+            if (observer != null) {
+                observer.receivedResponse(coapResponse);
+            }
+        }
     }
 
     /**
@@ -49,7 +65,6 @@ public class CoapClient extends Observable implements CoapResponseProcessor, Tra
         responseReceived.set(true);
         log.info("Received: {}", coapResponse);
         
-        setChanged();
         notifyObservers(coapResponse);
     }
 
@@ -68,20 +83,20 @@ public class CoapClient extends Observable implements CoapResponseProcessor, Tra
         int value = transmissionCounter.incrementAndGet();
 
         if(retransmission){
-            log.info("Transmission #{} for message with ID {} to {} (Token: {})",
-                    new Object[]{value, messageID, remoteEndpint, token});
+            log.debug("Transmission #{} for message with ID {} to {} (Token: {})",
+                      new Object[]{value, messageID, remoteEndpint, token});
         }
         else{
-            log.info("Message with ID {} written to {} (Token: {})",
-                    new Object[]{messageID, remoteEndpint, token});
+            log.debug("Message with ID {} written to {} (Token: {})",
+                      new Object[]{messageID, remoteEndpint, token});
         }
     }
 
 
     @Override
     public void processRetransmissionTimeout(InetSocketAddress remoteEndpoint, int messageID, Token token) {
-        log.info("Internal timeout for message with ID {} to {} (Token: {})",
-                new Object[]{messageID, remoteEndpoint, token});
+        log.debug("Internal timeout for message with ID {} to {} (Token: {})",
+                  new Object[]{messageID, remoteEndpoint, token});
 
         timedOut.set(true);
     }

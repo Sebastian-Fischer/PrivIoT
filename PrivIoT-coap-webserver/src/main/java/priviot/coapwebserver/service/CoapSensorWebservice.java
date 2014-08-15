@@ -2,6 +2,8 @@ package priviot.coapwebserver.service;
 
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -10,6 +12,8 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import javax.crypto.NoSuchPaddingException;
 
 import org.apache.log4j.Logger;
 
@@ -33,6 +37,8 @@ import priviot.utils.data.EncryptionParameters;
 import priviot.utils.data.transfer.EncryptedSensorDataPackage;
 import priviot.utils.data.transfer.PrivIoTContentFormat;
 import priviot.utils.encryption.EncryptionException;
+import priviot.utils.encryption.cipher.AsymmetricCipherer;
+import priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
 import priviot.coapwebserver.data.JenaRdfModelWithLifetime;
 import priviot.coapwebserver.data.KeyDatabase;
 import priviot.coapwebserver.data.KeyDatabaseEntry;
@@ -61,8 +67,12 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
      * @param path Path where the Webservice is registered
      * @param updateInterval Interval of resource update in seconds
      */
-    public CoapSensorWebservice(String path, int updateInterval) {
+    public CoapSensorWebservice(String path, int updateInterval, 
+                                EncryptionParameters encryptionParameters, KeyDatabase keyDatabase) {
     	super(path, null);
+    	
+    	this.encryptionParameters = encryptionParameters;
+    	this.keyDatabase = keyDatabase;
     	
     	updateIntervalMillis = updateInterval * 1000;
 
@@ -85,14 +95,6 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
 	            PrivIoTContentFormat.APP_ENCRYPTED_TURTLE,
 	            "%s"
 	    );
-    }
-    
-    public void setEncryptionParameters(EncryptionParameters encryptionParameters) {
-        this.encryptionParameters = encryptionParameters;
-    }
-    
-    public void setKeyDatabase(KeyDatabase keyDatabase) {
-        this.keyDatabase = keyDatabase;
     }
     
     public void updateRdfSensorData(JenaRdfModelWithLifetime rdfSensorData) {
@@ -255,16 +257,16 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
             
             //TODO: get url of the recipient to get the right public key, but how??
             //      The superclass ObservableWebservice does not know it's observers
-            List<String> urlList = keyDatabase.getAllEntryUrls();
-            if (urlList.size() != 1) {
+            List<URI> uriList = keyDatabase.getAllEntryUrls();
+            if (uriList.size() != 1) {
                 log.error("No or more than one Entry in KeyDatabase");
                 return null;
             }
-            String urlRecipient = urlList.get(0);
+            URI uriRecipient = uriList.get(0);
             
-            KeyDatabaseEntry keyDatabaseEntry = keyDatabase.getEntry(urlRecipient);
+            KeyDatabaseEntry keyDatabaseEntry = keyDatabase.getEntry(uriRecipient);
             if (keyDatabaseEntry == null) {
-                log.error("No public key knwon for recipient '" + urlRecipient + "'");
+                log.error("No public key knwon for recipient '" + uriRecipient.getHost() + "'");
                 return null;
             }
             byte[] publicKeyRecipient = keyDatabaseEntry.getPublicKey();
@@ -275,10 +277,10 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
                 encryptedSensorDataPackage = 
                         EncryptionProcessor.createEncryptedDataPackage(rdfModelStr, 
                                                                lifetime,
-                                                               encryptionParameters.getAsymmetricEncryptionAlgorithm(),
-                                                               encryptionParameters.getAsymmetricEncryptionKeySize(),
                                                                encryptionParameters.getSymmetricEncryptionAlgorithm(),
                                                                encryptionParameters.getSymmetricEncryptionKeySize(),
+                                                               encryptionParameters.getAsymmetricEncryptionAlgorithm(),
+                                                               encryptionParameters.getAsymmetricEncryptionKeySize(),
                                                                publicKeyRecipient);
             } catch (EncryptionException e) {
                 log.error(e.getMessage());

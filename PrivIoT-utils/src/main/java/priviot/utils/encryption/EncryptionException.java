@@ -16,7 +16,16 @@ public class EncryptionException extends Exception {
         this.originalException = originalException;
     }
     
+    public EncryptionException(String message) {
+        this.message = message;
+    }
+    
     public String getMessage() {
-        return message + ": " + originalException.getMessage();
+        if (originalException == null) {
+            return message;
+        }
+        else {
+            return message + ": " + originalException.getMessage();
+        }
     }
 }

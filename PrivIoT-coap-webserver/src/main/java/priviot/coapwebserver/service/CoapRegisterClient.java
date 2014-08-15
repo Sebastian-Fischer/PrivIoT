@@ -6,8 +6,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.cert.X509Certificate;
-import java.util.Observable;
-import java.util.Observer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +25,7 @@ import priviot.utils.data.transfer.PrivIoTContentFormat;
  * 
  * For communication a {@link CoapClient} is used.
  */
-public class CoapRegisterClient implements Observer {
+public class CoapRegisterClient implements CoapClientObserver {
     private static String urlPathCertificate = "/certificate";
     private static String urlPathRegistry = "/registry";
     
@@ -45,6 +43,8 @@ public class CoapRegisterClient implements Observer {
     private CoapClient coapClient;
     
     private CoapRegisterClientObserver observer;
+    
+    private boolean isInitialized = false;
     
     /**
      * Constructor.
@@ -65,7 +65,12 @@ public class CoapRegisterClient implements Observer {
         this.portCPP = portCPP;
         
         coapClient = new CoapClient();
+    }
+    
+    private void initialize() {
         coapClient.addObserver(this);
+        
+        isInitialized = true;
     }
     
     public void setObserver(CoapRegisterClientObserver observer) {
@@ -78,6 +83,10 @@ public class CoapRegisterClient implements Observer {
      * @throws UnknownHostException
      */
     public void sendCertificateRequest() throws URISyntaxException, UnknownHostException {
+        if (!isInitialized) {
+            initialize();
+        }
+        
         // Create CoAP request
         URI webserviceURI = new URI ("coap", null, urlSSP, portSSP, urlPathCertificate, "", null);
         
@@ -100,12 +109,17 @@ public class CoapRegisterClient implements Observer {
      * @throws UnknownHostException
      */
     public void sendRegisterRequest() throws URISyntaxException, UnknownHostException {
+        if (!isInitialized) {
+            initialize();
+        }
+        
         // Create CoAP request
         URI webserviceURI = new URI ("coap", null, urlCPP, portCPP, urlPathRegistry, "", null);
         
         MessageType.Name messageType = MessageType.Name.CON;
         
-        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, webserviceURI, false);
+        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.POST, webserviceURI, false);
+        coapRequest.setContent("localhost".getBytes());
         
         // Set recipient (webservice host)
         InetSocketAddress recipient;
@@ -113,17 +127,12 @@ public class CoapRegisterClient implements Observer {
         
         // Send the CoAP request
         coapClientApplication.sendCoapRequest(coapRequest, coapClient, recipient);
+        
+        log.info("REGISTER request sent to: " + recipient.getAddress() + ":" + recipient.getPort());
     }
 
-    //TODO: change to own observer class
     @Override
-    public void update(Observable coapClientObs, Object coapResponseObj) {
-        if (coapClient != coapClientObs) {
-            return;
-        }
-        
-        CoapResponse coapResponse = (CoapResponse)coapResponseObj;
-        
+    public void receivedResponse(CoapResponse coapResponse) {        
         URI locationUri;
         try {
             locationUri = coapResponse.getLocationURI();
@@ -131,15 +140,25 @@ public class CoapRegisterClient implements Observer {
             log.error("location uri of received message is bad formed");
             return;
         }
+        if (locationUri == null) {
+            log.error("location uri is null");
+            return;
+        }
+        if (coapResponse.getMessageCode() != MessageCode.Name.CONTENT_205.getNumber()) {
+            log.info("Received message code " + coapResponse.getMessageCode());
+            return;
+        }
         String baseUri = locationUri.getHost();
         
-        log.info("received message from: " + locationUri + " (host: " + baseUri + ")");
+        log.info("RECEIVED message from: " + locationUri + " (host: " + baseUri + ")");
         
         // if this is answer to certificate request
         if (coapResponse.getContentFormat() == PrivIoTContentFormat.APP_X509CERTIFICATE) {
             //TODO: parse X509Certificate
             // maybe like this: http://www.oracle.com/technetwork/articles/javase/dig-signature-api-140772.html
             X509Certificate certificate = null;
+            
+            log.warn("TODO: Parse the received X509Certificate");
             
             if (observer != null) {
                 observer.receivedCertificate(locationUri, certificate);

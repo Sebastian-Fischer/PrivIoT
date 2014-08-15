@@ -9,7 +9,14 @@ public class EncryptionParameters {
     private String asymmetricEncryptionAlgorithm;
     private int asymmetricEncryptionKeySize;
     
-    public EncryptionParameters() {
+    public EncryptionParameters(String symmetricEncryptionAlgorithm, 
+                                int symmetricEncryptionKeySize,
+                                String asymmetricEncryptionAlgorithm,
+                                int asymmetricEncryptionKeySize) {
+        this.symmetricEncryptionAlgorithm = symmetricEncryptionAlgorithm;
+        this.symmetricEncryptionKeySize = symmetricEncryptionKeySize;
+        this.asymmetricEncryptionAlgorithm = asymmetricEncryptionAlgorithm;
+        this.asymmetricEncryptionKeySize = asymmetricEncryptionKeySize;
     }
 
     public String getSymmetricEncryptionAlgorithm() {

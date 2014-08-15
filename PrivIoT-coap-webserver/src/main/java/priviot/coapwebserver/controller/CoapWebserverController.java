@@ -3,11 +3,14 @@ package priviot.coapwebserver.controller;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
+
+import javax.crypto.NoSuchPaddingException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +35,10 @@ import priviot.coapwebserver.sensor.SimpleIntegerSensor;
 import priviot.coapwebserver.service.CoapRegisterClient;
 import priviot.coapwebserver.service.CoapRegisterClientObserver;
 import priviot.coapwebserver.service.CoapSensorWebservice;
+import priviot.utils.data.EncryptionParameters;
+import priviot.utils.encryption.cipher.AsymmetricCipherer;
+import priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
+import priviot.utils.encryption.cipher.symmetric.aes.AESCipherer;
 
 /**
  * Main controller class of the CoAP-Webserver.
@@ -56,7 +63,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     /** URI of the sensor */
     private static final String SENSOR1_URI = "/sensor1";
     /** frequency in which new values are published by the sensor in seconds */
-    private static final int SENSOR1_UPDATE_FREQUENCY = 3;
+    private static final int SENSOR1_UPDATE_FREQUENCY = 10;
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
@@ -78,6 +85,9 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     /** Stores public keys of Smart Service Proxies */
     private KeyDatabase keyDatabase;
     
+    /** Parameters for encryption (used algorithms and keysizes) */
+    private EncryptionParameters encryptionParameters;
+    
     /**
      * Constructor.
      * 
@@ -96,9 +106,32 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         sensors = new ArrayList<Sensor>();
         coapSensorWebservices = new ArrayList<CoapSensorWebservice>();
         
-        createSensorsAndWebservices();
-        
         keyDatabase = new KeyDatabase();
+        
+        //TODO: remove test code
+        log.info("TEST CODE: generate random public key");
+        AsymmetricCipherer rsaCipherer;
+        try {
+            rsaCipherer = new RSACipherer();
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            System.out.println("Exception during construct in RSA test: " + e.getMessage());
+            return;
+        }
+        rsaCipherer.generateKey();
+        byte[] rsaPublicKey = rsaCipherer.getPublicKeyAsByteArray();
+        URI uri;
+        try {
+            uri = new URI("coap", null, "localhost", 8081, "/", null, null);
+        } catch (URISyntaxException e) {
+            log.error("", e);
+            return;
+        }
+        keyDatabase.addEntry(new KeyDatabaseEntry(uri, rsaPublicKey));
+        
+        encryptionParameters = new EncryptionParameters(AESCipherer.getAlgorithm(), 256,
+                                                        RSACipherer.getAlgorithm(), 1024);
+        
+        createSensorsAndWebservices();
         
         coapRegisterClient = new CoapRegisterClient(coapClientApplication, urlSSP, portSSP, urlCPP, portCPP);
     }
@@ -107,10 +140,19 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      * Starts the processing of the application by sending the certificate request to SSP.
      */
     public void start() {
+        //TODO only test
+        /*
         try {
             coapRegisterClient.sendCertificateRequest();
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Exception during sendCertificateRequest: " + e.getLocalizedMessage());
+        }*/
+        log.info("SEND REGISTER REQUEST");
+        // send register request to CoAP Privacy Proxy
+        try {
+            coapRegisterClient.sendRegisterRequest();
+        } catch (UnknownHostException | URISyntaxException e) {
+            log.error("Exception during sendRegisterRequest: " + e.getMessage());
         }
     }
     
@@ -122,7 +164,8 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         SimpleIntegerSensor sensor1 = new SimpleIntegerSensor(SENSOR1_URI, SENSOR1_UPDATE_FREQUENCY, executorService);
         sensor1.addObserver(this);
         
-        CoapSensorWebservice coapWebservice1 = new CoapSensorWebservice(SENSOR1_URI, SENSOR1_UPDATE_FREQUENCY);
+        CoapSensorWebservice coapWebservice1 = new CoapSensorWebservice(SENSOR1_URI, SENSOR1_UPDATE_FREQUENCY,
+                                                                        encryptionParameters, keyDatabase);
         
         sensors.add(sensor1);
         coapSensorWebservices.add(coapWebservice1);
@@ -184,12 +227,10 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      */
     @Override
     public void receivedCertificate(URI fromUri, X509Certificate certificate) {
-        String baseUri = fromUri.getHost();
-        
         byte[] publicKey = certificate.getPublicKey().getEncoded();
         
         // save public key
-        keyDatabase.addEntry(new KeyDatabaseEntry(baseUri, publicKey));
+        keyDatabase.addEntry(new KeyDatabaseEntry(fromUri, publicKey));
         
         // send register request to CoAP Privacy Proxy
         try {

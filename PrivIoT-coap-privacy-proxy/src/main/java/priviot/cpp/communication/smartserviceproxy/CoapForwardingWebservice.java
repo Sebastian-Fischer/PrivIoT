@@ -1,4 +1,4 @@
-package priviot.coap_proxy.communication.smart_service_proxy;
+package priviot.cpp.communication.smartserviceproxy;
 
 import java.net.InetSocketAddress;
 import java.util.HashMap;
@@ -6,12 +6,11 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
-import priviot.utils.data.transfer.DataPackage;
+import priviot.utils.data.transfer.EncryptedSensorDataPackage;
+import priviot.utils.data.transfer.PrivIoTContentFormat;
 
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.SettableFuture;
@@ -29,56 +28,56 @@ import de.uniluebeck.itm.ncoap.message.MessageType;
 import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 
 /**
- * Webservice that communicates with the smart service proxy over the COAP protocol.
+ * One CoAP-Webservice for every known Smart Service Proxy (SSP) that is observable for the SSP.
  * 
- * The COAPWebservice is observable for clients.
+ * The CoapForwardingWebservice forwards the received sensor data of the CoAP-Webservers to the SSP.
+ * 
+ * When a SSP asks for the resource /.well-known/core, 
+ * he finds the CoapForwardingWebservice as observable webservices.
  */
-public class SmartServiceProxyCoapWebservice  extends ObservableWebservice<DataPackage> {
+public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSensorDataPackage> {
 	public static long DEFAULT_CONTENT_FORMAT = ContentFormat.TEXT_PLAIN_UTF8;
 	
-	private Logger log = Logger.getLogger(SmartServiceProxyCoapWebservice.class.getName());
-	private ScheduledFuture periodicUpdateFuture;
+	private Logger log = Logger.getLogger(CoapForwardingWebservice.class.getName());
 
     private Map<Long, String> templates;
     
     private long updateIntervalMillis;
-    
-    private volatile DataPackage dataPackage;
     
     /**
      * Constructor
      * @param path Path where the Webservice is registered
      * @param updateInterval Interval of resource update in seconds
      */
-    public SmartServiceProxyCoapWebservice(String path, int updateInterval) {
+    public CoapForwardingWebservice(String path, int updateInterval) {
     	super(path, null);
     	
     	updateIntervalMillis = updateInterval * 1000;
 
         this.templates = new HashMap<>();
 
-        //add support for utf-8 plain-text content
+      //add support for encrypted/rdf/xml content
         addContentFormat(
-                ContentFormat.TEXT_PLAIN_UTF8,
+                PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML,
                 "%s"
         );
 
-        //add support for xml content
+        //add support for encrypted/n3 content
         addContentFormat(
-                ContentFormat.APP_XML,
+                PrivIoTContentFormat.APP_ENCRYPTED_N3,
                 "%s"
         );
         
-        //add support for rdf/xml content
-	    addContentFormat(
-	            ContentFormat.APP_RDF_XML,
-	            "%s"
-	    );
+        //add support for encrypted/turtle content
+        addContentFormat(
+                PrivIoTContentFormat.APP_ENCRYPTED_TURTLE,
+                "%s"
+        );
     }
     
-    public void updateRdfSensorData(DataPackage dataPackage) {
-    	log.info("update sensor data: " + dataPackage);
-    	this.dataPackage = dataPackage;
+    public void updateRdfSensorData(EncryptedSensorDataPackage dataPackage) {
+    	log.info("update sensor data");
+    	setResourceStatus(dataPackage, updateIntervalMillis / 1000);
     }
     
     private void addContentFormat(long contentFormat, String template){
@@ -89,7 +88,6 @@ public class SmartServiceProxyCoapWebservice  extends ObservableWebservice<DataP
     @Override
     public void setScheduledExecutorService(ScheduledExecutorService executorService){
         super.setScheduledExecutorService(executorService);
-        schedulePeriodicResourceUpdate();
     }
 
     @Override
@@ -109,25 +107,8 @@ public class SmartServiceProxyCoapWebservice  extends ObservableWebservice<DataP
 
 
     @Override
-    public void updateEtag(DataPackage resourceStatus) {
+    public void updateEtag(EncryptedSensorDataPackage resourceStatus) {
         //nothing to do here...
-    }
-
-
-    private void schedulePeriodicResourceUpdate(){
-        this.periodicUpdateFuture = getScheduledExecutorService().scheduleAtFixedRate(new Runnable(){
-
-            @Override
-            public void run() {
-                try{
-                    setResourceStatus(dataPackage, updateIntervalMillis / 1000);
-                    log.info("New status of resource " + getPath() + ": " + getResourceStatus());
-                }
-                catch(Exception ex){
-                    log.error("Exception while updating status...", ex);
-                }
-            }
-        },0, updateIntervalMillis, TimeUnit.MILLISECONDS);
     }
 
 
@@ -214,8 +195,6 @@ public class SmartServiceProxyCoapWebservice  extends ObservableWebservice<DataP
     @Override
     public void shutdown() {
         log.info("Shutdown service " + getPath() + ".");
-        boolean futureCanceled = this.periodicUpdateFuture.cancel(true);
-        log.info("Future canceled: " + futureCanceled);
     }
 
 
@@ -228,11 +207,11 @@ public class SmartServiceProxyCoapWebservice  extends ObservableWebservice<DataP
         }
         
         String ressourceStatusString = "";
-        if (contentFormat == ContentFormat.TEXT_PLAIN_UTF8) {
-            ressourceStatusString = getResourceStatus().toUTF8();
-        }
-        else if (contentFormat == ContentFormat.APP_XML || contentFormat == ContentFormat.APP_RDF_XML) {
-            ressourceStatusString = getResourceStatus().toXML();
+        if (contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML || 
+            contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_N3 ||
+            contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_TURTLE) {
+            
+            ressourceStatusString = getResourceStatus().toXMLString();
         }
         else {
             // contentFormat not supported
