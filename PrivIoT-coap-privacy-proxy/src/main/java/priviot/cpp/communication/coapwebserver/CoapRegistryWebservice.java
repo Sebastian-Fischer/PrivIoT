@@ -26,7 +26,7 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
 import de.uniluebeck.itm.ncoap.message.options.OptionValue;
-import priviot.cpp.communication.CoapClient;
+
 import priviot.cpp.data.Registry;
 import priviot.cpp.data.RegistryEntry;
 
@@ -36,11 +36,11 @@ import priviot.cpp.data.RegistryEntry;
  * Uppon receiving a registration, it requests the ressource /.well-known/core of the registered
  * CoAP-Webserver to get information about the servers observable webservices.
  * 
- * The CoapRegistryWebservice uses a {@link CoapClient} to send requests.
+ * The CoapRegistryWebservice uses a {@link WellKnownCoreProcessor} to process responses.
  */
 public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
     private static int PORT_WEBSERVER = 5684;
-    private static int PORT_SSP = 8081;
+    private static int PORT_SSP = 8080;
     private static String PATH_CORE_RESSOURCE = "/.well-known/core";
     private static String PATH_REGISTRY_RESSOURCE = "/registry";
     
@@ -75,7 +75,7 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
                                    final CoapRequest coapRequest, InetSocketAddress remoteAddress) {
 
         try{
-            log.info("Received CoAP registration message from {}: {}", remoteAddress.getAddress(), coapRequest);
+            log.debug("Received CoAP registration message from {}: {}", remoteAddress.getAddress(), coapRequest);
 
             //Only POST messages are allowed
             if(coapRequest.getMessageCodeName() != MessageCode.Name.POST){
@@ -93,7 +93,7 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
             
             String urlSSP = new String(readable);
             
-            log.info("content urlSSP is: '" + urlSSP + "'");
+            log.debug("content urlSSP is: '" + urlSSP + "'");
             
             final URI uriWebserver = createWebserverURI(remoteAddress.getHostName());
             URI uriSSP;
@@ -108,6 +108,11 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
             
             // save webserver in the registry
             registry.addEntry(new RegistryEntry(uriWebserver, uriSSP));
+            
+            // notify listener
+            if (listener != null) {
+                listener.registeredNewWebserver(uriWebserver, uriSSP);
+            }
 
             //Get the set of available Services on the newly registered Server
             ListenableFuture<Set<URI>> servicesFuture = getAvailableWebservices(remoteAddress.getAddress());
@@ -115,8 +120,6 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
             Futures.addCallback(servicesFuture, new FutureCallback<Set<URI>>() {
                 @Override
                 public void onSuccess(Set<URI> result) {
-                    
-                    log.info("success in get status");
                     
                     RegistryEntry entry = registry.getEntry(uriWebserver);
                     if (entry == null) {
@@ -128,7 +131,9 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
                         entry.addWebservice(uriWebservice);
                         
                         // notify listener
-                        listener.registeredNewWebservice(uriWebservice);
+                        if (listener != null) {
+                            listener.registeredNewWebservice(uriWebservice);
+                        }
                     }
                 }
 

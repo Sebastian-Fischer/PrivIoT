@@ -25,14 +25,10 @@ public class CoapRegisterClient {
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
-    private String urlSSP;
     private static int portSSP = 8080;
     
     /** Can send CoAP requests using the CoapRegisterClient */
     private CoapClientApplication coapClientApplication;
-    
-    /** Used to send CoAP requests */
-    private CoapClient coapClient;
 
     /**
      * Constructor.
@@ -40,11 +36,8 @@ public class CoapRegisterClient {
      * @param coapClientApplication  The CoapClientApplication object
      * @param urlSSP   The host url of the Smart Service Proxy
      */
-    public CoapRegisterClient(CoapClientApplication coapClientApplication, CoapClient coapClient, String urlSSP) {
+    public CoapRegisterClient(CoapClientApplication coapClientApplication) {
         this.coapClientApplication = coapClientApplication;
-        this.coapClient = coapClient;
-        
-        this.urlSSP = urlSSP;
     }
     
     /**
@@ -53,17 +46,19 @@ public class CoapRegisterClient {
      * @throws URISyntaxException
      * @throws UnknownHostException
      */
-    public void sendRegisterRequest() throws URISyntaxException, UnknownHostException {
+    public void sendRegisterRequest(String hostNameSSP) throws URISyntaxException, UnknownHostException {
         // Create CoAP request
-        URI webserviceURI = new URI ("coap", null, urlSSP, portSSP, urlPathRegistry, "", null);
+        URI uriSSP = new URI ("coap", null, hostNameSSP, portSSP, urlPathRegistry, "", null);
         
         MessageType.Name messageType = MessageType.Name.CON;
         
-        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, webserviceURI, false);
+        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, uriSSP, false);
         
         // Set recipient (webservice host)
         InetSocketAddress recipient;
-        recipient = new InetSocketAddress(InetAddress.getByName(urlSSP), portSSP);
+        recipient = new InetSocketAddress(InetAddress.getByName(hostNameSSP), portSSP);
+        
+        CoapClient coapClient = new CoapClient();
         
         // Send the CoAP request
         coapClientApplication.sendCoapRequest(coapRequest, coapClient, recipient);

@@ -1,6 +1,7 @@
 package priviot.cpp.communication.smartserviceproxy;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -36,25 +37,24 @@ import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
  * he finds the CoapForwardingWebservice as observable webservices.
  */
 public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSensorDataPackage> {
-	public static long DEFAULT_CONTENT_FORMAT = ContentFormat.TEXT_PLAIN_UTF8;
-	
 	private Logger log = Logger.getLogger(CoapForwardingWebservice.class.getName());
 
     private Map<Long, String> templates;
     
-    private long updateIntervalMillis;
+    /** The URI of the Smart Service Proxy the CoapForwardingWebservice is used for */
+    private URI uriSSP;
     
     /**
      * Constructor
      * @param path Path where the Webservice is registered
      * @param updateInterval Interval of resource update in seconds
      */
-    public CoapForwardingWebservice(String path, int updateInterval) {
+    public CoapForwardingWebservice(String path, URI uriSSP) {
     	super(path, null);
-    	
-    	updateIntervalMillis = updateInterval * 1000;
 
         this.templates = new HashMap<>();
+        
+        this.uriSSP = uriSSP;
 
       //add support for encrypted/rdf/xml content
         addContentFormat(
@@ -75,9 +75,17 @@ public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSen
         );
     }
     
+    /**
+     * Returns the URI of the Smart Service Proxy the CoapForwardingWebservice is used for
+     * @return
+     */
+    public URI getUriSSP() {
+        return uriSSP;
+    }
+    
     public void updateRdfSensorData(EncryptedSensorDataPackage dataPackage) {
-    	log.info("update sensor data");
-    	setResourceStatus(dataPackage, updateIntervalMillis / 1000);
+    	log.info("New sensor data for SSP '" + uriSSP.getHost() + "' available");
+    	setResourceStatus(dataPackage, dataPackage.getContentLifetime());
     }
     
     private void addContentFormat(long contentFormat, String template){
@@ -140,14 +148,10 @@ public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSen
         //Retrieve the accepted content formats from the request
         Set<Long> contentFormats = coapRequest.getAcceptedContentFormats();
 
-        //If accept option is not set in the request, use the default (TEXT_PLAIN_UTF8)
-        if(contentFormats.isEmpty())
-            contentFormats.add(DEFAULT_CONTENT_FORMAT);
-
         //Generate the payload of the response (depends on the accepted content formats, resp. the default
         WrappedResourceStatus resourceStatus = null;
         Iterator<Long> iterator = contentFormats.iterator();
-        long contentFormat = DEFAULT_CONTENT_FORMAT;
+        long contentFormat = 0;
 
         while(resourceStatus == null && iterator.hasNext()){
             contentFormat = iterator.next();

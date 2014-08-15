@@ -21,7 +21,8 @@ import de.uniluebeck.itm.ncoap.message.MessageType;
  * The CoapObserver registeres the Coap Privacy Proxy at observable sensor webservices 
  * of registered CoAP-Webservers.
  * 
- * After the observer registration it receives periodically the actual data of the sensors.
+ * After the observer registration it receives periodically the actual data of the sensors and
+ * sends them to the registered CoapObserverListener.
  */
 public class CoapObserver {    
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -81,7 +82,13 @@ public class CoapObserver {
                     log.error("Wrong behavior of webservice. Received message with code " + response.getMessageCodeName());
                     return;
                 }
-                listener.receivedActualStatus(enpoint, response.getContentFormat(), response.getContent());
+                if (response.getContent().readableBytes() == 0) {
+                    // empty status
+                    return;
+                }
+                if (listener != null) {
+                    listener.receivedActualStatus(enpoint, response.getContentFormat(), response.getContent());
+                }
             }
         });
     }

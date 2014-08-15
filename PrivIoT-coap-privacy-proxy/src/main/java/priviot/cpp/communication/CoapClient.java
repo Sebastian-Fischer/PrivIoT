@@ -117,11 +117,11 @@ public class CoapClient implements CoapResponseProcessor, TransmissionInformatio
         int value = responseCounter.incrementAndGet();
         log.debug("Received #{}: {}", value, coapResponse);
         
-        responseFuture.set(coapResponse);
-        
         if (listener != null) {
             listener.receivedResponse(recipient, coapResponse);
         }
+        
+        responseFuture.set(coapResponse);
     }
     
     /**

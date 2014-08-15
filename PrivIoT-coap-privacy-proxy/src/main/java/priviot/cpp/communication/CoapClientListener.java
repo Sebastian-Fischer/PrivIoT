@@ -14,5 +14,5 @@ public interface CoapClientListener {
      *                 Can be null, if recipient has not been set in CoapClient.
      * @param response The response.
      */
-    public void receivedResponse(URI enpoint, CoapResponse response);
+    public void receivedResponse(final URI enpoint, final CoapResponse response);
 }
