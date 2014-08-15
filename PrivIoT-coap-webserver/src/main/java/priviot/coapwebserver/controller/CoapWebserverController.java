@@ -1,11 +1,21 @@
 package priviot.coapwebserver.controller;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
@@ -65,6 +75,8 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     /** frequency in which new values are published by the sensor in seconds */
     private static final int SENSOR1_UPDATE_FREQUENCY = 10;
     
+    private static final String TEST_CERT_FILE_NAME = "test.cert";
+    
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
     /** Listens to a local port. Web services can be registered here. */
@@ -108,26 +120,6 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         
         keyDatabase = new KeyDatabase();
         
-        //TODO: remove test code
-        log.info("TEST CODE: generate random public key");
-        AsymmetricCipherer rsaCipherer;
-        try {
-            rsaCipherer = new RSACipherer();
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            System.out.println("Exception during construct in RSA test: " + e.getMessage());
-            return;
-        }
-        rsaCipherer.generateKey();
-        byte[] rsaPublicKey = rsaCipherer.getPublicKeyAsByteArray();
-        URI uri;
-        try {
-            uri = new URI("coap", null, "localhost", 8081, "/", null, null);
-        } catch (URISyntaxException e) {
-            log.error("", e);
-            return;
-        }
-        keyDatabase.addEntry(new KeyDatabaseEntry(uri, rsaPublicKey));
-        
         encryptionParameters = new EncryptionParameters(AESCipherer.getAlgorithm(), 256,
                                                         RSACipherer.getAlgorithm(), 1024);
         
@@ -147,13 +139,59 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Exception during sendCertificateRequest: " + e.getLocalizedMessage());
         }*/
-        log.info("SEND REGISTER REQUEST");
+        
+        log.warn("TEST CODE: load test certificate from file '" + TEST_CERT_FILE_NAME + "'");
+        Path certPath = Paths.get(TEST_CERT_FILE_NAME);
+        X509Certificate certificate;
+        try {
+            certificate = loadCertificateFromFile(certPath);
+        } catch (CertificateException | IOException e1) {
+            log.error("No X.509 certificate found in file '" + TEST_CERT_FILE_NAME + "'");
+            return;
+        }
+        if (!(new File(TEST_CERT_FILE_NAME)).exists()) {
+            log.error("Certificate not found. Please copy file '" + TEST_CERT_FILE_NAME + "' to current directory");
+            return;
+        }
+        if (certificate == null) {
+            log.error("No X.509 certificate found in file '" + TEST_CERT_FILE_NAME + "'");
+            return;
+        }
+        URI certUri;
+        try {
+            certUri = new URI("coap", null, "localhost", 8080, "/", null, null);
+        } catch (URISyntaxException e) {
+            log.error("", e);
+            return;
+        }
+        receivedCertificate(certUri, certificate);
+        
+        log.warn("TEST CODE: send register request to CoAP Privacy Proxy");
         // send register request to CoAP Privacy Proxy
         try {
             coapRegisterClient.sendRegisterRequest();
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Exception during sendRegisterRequest: " + e.getMessage());
         }
+    }
+    
+    private X509Certificate loadCertificateFromFile(Path certPath) throws CertificateException, IOException {
+        final CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+        
+        ByteArrayInputStream stream = new ByteArrayInputStream(Files.readAllBytes(certPath));
+        
+        final Collection<? extends Certificate> certs =
+             (Collection<? extends Certificate>) certFactory.generateCertificates(stream);
+        
+        if (certs.size() == 1) {
+            for (Certificate cert : certs) {
+                if (cert instanceof X509Certificate) {
+                    return (X509Certificate)cert;
+                }
+            }
+        }
+        
+        return null;
     }
     
     private void createSensorsAndWebservices() {
@@ -227,6 +265,11 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      */
     @Override
     public void receivedCertificate(URI fromUri, X509Certificate certificate) {
+        log.info("received certificate for " + certificate.getSubjectX500Principal().getName());
+        
+        //TODO: check certificate
+        log.warn("TODO: check the received certificate");
+        
         byte[] publicKey = certificate.getPublicKey().getEncoded();
         
         // save public key

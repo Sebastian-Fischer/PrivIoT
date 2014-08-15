@@ -258,8 +258,12 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
             //TODO: get url of the recipient to get the right public key, but how??
             //      The superclass ObservableWebservice does not know it's observers
             List<URI> uriList = keyDatabase.getAllEntryUrls();
+            if (uriList.size() == 0) {
+                log.error("No Entry in KeyDatabase. Without a public key of the recipient no encrypted data package can be created.");
+                return null;
+            }
             if (uriList.size() != 1) {
-                log.error("No or more than one Entry in KeyDatabase");
+                log.error("More than one Entry in KeyDatabase");
                 return null;
             }
             URI uriRecipient = uriList.get(0);

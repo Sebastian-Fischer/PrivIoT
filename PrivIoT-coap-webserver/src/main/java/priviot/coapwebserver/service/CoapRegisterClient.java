@@ -128,7 +128,7 @@ public class CoapRegisterClient implements CoapClientObserver {
         // Send the CoAP request
         coapClientApplication.sendCoapRequest(coapRequest, coapClient, recipient);
         
-        log.info("REGISTER request sent to: " + recipient.getAddress() + ":" + recipient.getPort());
+        log.debug("register request sent to: " + recipient.getAddress() + ":" + recipient.getPort());
     }
 
     @Override
@@ -145,12 +145,12 @@ public class CoapRegisterClient implements CoapClientObserver {
             return;
         }
         if (coapResponse.getMessageCode() != MessageCode.Name.CONTENT_205.getNumber()) {
-            log.info("Received message code " + coapResponse.getMessageCode());
+            log.debug("Received message code " + coapResponse.getMessageCode());
             return;
         }
         String baseUri = locationUri.getHost();
         
-        log.info("RECEIVED message from: " + locationUri + " (host: " + baseUri + ")");
+        log.debug("received message from: " + locationUri + " (host: " + baseUri + ")");
         
         // if this is answer to certificate request
         if (coapResponse.getContentFormat() == PrivIoTContentFormat.APP_X509CERTIFICATE) {
