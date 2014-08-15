@@ -101,6 +101,7 @@ public class TestMain {
         int asyKeySize = 1024;
         String symMethod = "aes";
         int symKeySize = 128;
+        int lifetime = 5;
         byte[] content = "blabla".getBytes();
         byte[] iv = {-43, 120, 2};
         byte[] key = "keykey".getBytes();
@@ -110,6 +111,7 @@ public class TestMain {
         dataPackage.setAsymmetricEncryptionBitStrength(asyKeySize);
         dataPackage.setSymmetricEncryptionMethod(symMethod);
         dataPackage.setSymmetricEncryptionBitStrength(symKeySize);
+        dataPackage.setContentLifetime(lifetime);
         dataPackage.setEncryptedContent(content);
         dataPackage.setEncryptedInitializationVector(iv);
         dataPackage.setEncryptedKey(key);
@@ -146,6 +148,7 @@ public class TestMain {
             dataPackage.getAsymmetricEncryptionBitStrength() == dataPackage2.getAsymmetricEncryptionBitStrength() &&
             dataPackage.getSymmetricEncryptionMethod().equals(dataPackage2.getSymmetricEncryptionMethod()) &&
             dataPackage.getSymmetricEncryptionBitStrength() == dataPackage2.getSymmetricEncryptionBitStrength() &&
+            dataPackage.getContentLifetime() == dataPackage2.getContentLifetime() &&
             Arrays.equals(dataPackage.getEncryptedContent(), dataPackage2.getEncryptedContent()) &&
             Arrays.equals(dataPackage.getEncryptedInitializationVector(), dataPackage2.getEncryptedInitializationVector()) &&
             Arrays.equals(dataPackage.getEncryptedKey(), dataPackage2.getEncryptedKey())) {

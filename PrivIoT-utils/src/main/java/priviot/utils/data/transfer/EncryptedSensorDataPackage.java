@@ -246,44 +246,72 @@ public class EncryptedSensorDataPackage {
             throw new DataPackageParsingException("Empty xml document");
         }
         
+        document.getDocumentElement().normalize();
+        
         Node rootElement = document.getChildNodes().item(0);
         
-        if (rootElement.getChildNodes().getLength() != 7) {
-            throw new DataPackageParsingException("Wrong number of child nodes in root element");
-        }
-        if (!"asymmetricEncryptionMethod".equals(rootElement.getChildNodes().item(0).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node asymmetricEncryptionMethod");
-        }
-        if (!"asymmetricEncryptionBitStrength".equals(rootElement.getChildNodes().item(1).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node asymmetricEncryptionBitStrength");
-        }
-        if (!"symmetricEncryptionMethod".equals(rootElement.getChildNodes().item(2).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node symmetricEncryptionMethod");
-        }
-        if (!"symmetricEncryptionBitStrength".equals(rootElement.getChildNodes().item(3).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node symmetricEncryptionBitStrength");
-        }
-        if (!"contentLifetime".equals(rootElement.getChildNodes().item(4).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node contentLifetime");
-        }
-        if (!"encryptedContent".equals(rootElement.getChildNodes().item(5).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node encryptedContent");
-        }
-        if (!"encryptedInitializationVector".equals(rootElement.getChildNodes().item(6).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node encryptedInitializationVector");
-        }
-        if (!"encryptedKey".equals(rootElement.getChildNodes().item(7).getNodeName())) {
-            throw new DataPackageParsingException("Excepted node encryptedKey");
+        Node elementAsymmetricEncryptionMethod = null;
+        Node elementAsymmetricEncryptionBitStrength = null;
+        Node elementSymmetricEncryptionMethod = null;
+        Node elementSymmetricEncryptionBitStrength = null;
+        Node elementContentLifetime = null;
+        Node elementEncryptedContent = null;
+        Node elementEncryptedIV = null;
+        Node elementEncryptedKey = null;
+        
+        for (int i = 0; i < rootElement.getChildNodes().getLength(); i++) {
+            Node node = rootElement.getChildNodes().item(i);
+            
+            if ("asymmetricEncryptionMethod".equals(node.getNodeName())) {
+                elementAsymmetricEncryptionMethod = node;
+            }
+            else if ("asymmetricEncryptionBitStrength".equals(node.getNodeName())) {
+                elementAsymmetricEncryptionBitStrength = node;
+            }
+            else if ("symmetricEncryptionMethod".equals(node.getNodeName())) {
+                elementSymmetricEncryptionMethod = node;
+            }
+            else if ("symmetricEncryptionBitStrength".equals(node.getNodeName())) {
+                elementSymmetricEncryptionBitStrength = node;
+            }
+            else if ("contentLifetime".equals(node.getNodeName())) {
+                elementContentLifetime = node;
+            }
+            else if ("encryptedContent".equals(node.getNodeName())) {
+                elementEncryptedContent = node;
+            }
+            else if ("encryptedInitializationVector".equals(node.getNodeName())) {
+                elementEncryptedIV = node;
+            }
+            else if ("encryptedKey".equals(node.getNodeName())) {
+                elementEncryptedKey = node;
+            }
         }
         
-        Node elementAsymmetricEncryptionMethod = rootElement.getChildNodes().item(0);
-        Node elementAsymmetricEncryptionBitStrength = rootElement.getChildNodes().item(1);
-        Node elementSymmetricEncryptionMethod = rootElement.getChildNodes().item(2);
-        Node elementSymmetricEncryptionBitStrength = rootElement.getChildNodes().item(3);
-        Node elementContentLifetime = rootElement.getChildNodes().item(4);
-        Node elementEncryptedContent = rootElement.getChildNodes().item(5);
-        Node elementEncryptedIV = rootElement.getChildNodes().item(6);
-        Node elementEncryptedKey = rootElement.getChildNodes().item(7);
+        if (elementAsymmetricEncryptionMethod == null) {
+            throw new DataPackageParsingException("Missing node: asymmetricEncryptionMethod");
+        }
+        if (elementAsymmetricEncryptionBitStrength == null) {
+            throw new DataPackageParsingException("Missing node: asymmetricEncryptionBitStrength");
+        }
+        if (elementSymmetricEncryptionMethod == null) {
+            throw new DataPackageParsingException("Missing node: symmetricEncryptionMethod");
+        }
+        if (elementSymmetricEncryptionBitStrength == null) {
+            throw new DataPackageParsingException("Missing node: symmetricEncryptionBitStrength");
+        }
+        if (elementContentLifetime == null) {
+            throw new DataPackageParsingException("Missing node: contentLifetime");
+        }
+        if (elementEncryptedContent == null) {
+            throw new DataPackageParsingException("Missing node: encryptedContent");
+        }
+        if (elementEncryptedIV == null) {
+            throw new DataPackageParsingException("Missing node: encryptedInitializationVector");
+        }
+        if (elementEncryptedKey == null) {
+            throw new DataPackageParsingException("Missing node: encryptedKey");
+        }
         
         if (elementAsymmetricEncryptionMethod.getChildNodes().getLength() > 1) {
             throw new DataPackageParsingException("Unexpected content in node asymmetricEncryptionMethod");
@@ -331,6 +359,11 @@ public class EncryptedSensorDataPackage {
            StreamResult result = new StreamResult(writer);
            TransformerFactory tf = TransformerFactory.newInstance();
            Transformer transformer = tf.newTransformer();
+           transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+           transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+           transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+           transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+           transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
            transformer.transform(domSource, result);
            return writer.toString();
         }
