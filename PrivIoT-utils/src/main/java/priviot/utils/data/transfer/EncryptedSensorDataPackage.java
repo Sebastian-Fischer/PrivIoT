@@ -73,6 +73,16 @@ public class EncryptedSensorDataPackage {
     public String getAsymmetricEncryptionMethod() {
         return asymmetricEncryptionMethod;
     }
+    
+    public String getAsymmetricEncryptionMethodShort() {
+    	String[] parts = asymmetricEncryptionMethod.split("/");
+    	if (parts.length == 0) {
+    		return "";
+    	}
+    	else {
+    		return parts[0];
+    	}
+    }
 
     public void setAsymmetricEncryptionMethod(String asymmetricEncryptionMethod) {
         this.asymmetricEncryptionMethod = asymmetricEncryptionMethod;

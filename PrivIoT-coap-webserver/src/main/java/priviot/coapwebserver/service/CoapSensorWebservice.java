@@ -143,6 +143,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
             }
 
             else {
+            	log.debug("Reply with METHOD NOT ALLOWED 405");
                 CoapResponse coapResponse = new CoapResponse(coapRequest.getMessageTypeName(),
                         MessageCode.Name.METHOD_NOT_ALLOWED_405);
                 String message = "Service does not allow " + coapRequest.getMessageCodeName() + " requests.";
@@ -161,6 +162,12 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
 
         //Retrieve the accepted content formats from the request
         Set<Long> contentFormats = coapRequest.getAcceptedContentFormats();
+        
+        String contentFormatsStr = "";
+        for (Long contentFormat : contentFormats) {
+        	contentFormatsStr += Long.toString(contentFormat) + ", ";
+        }
+        log.debug("received get with accepted content formats: " + contentFormatsStr);
 
         //If accept option is not set in the request, use the default
         if(contentFormats.isEmpty())
@@ -183,6 +190,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
         //requests accept option(s)) is offered by the Webservice then set payload and content format option
         //accordingly
         if(resourceStatus != null){
+        	log.debug("Reply with CONTENT 205");
             coapResponse = new CoapResponse(coapRequest.getMessageTypeName(), MessageCode.Name.CONTENT_205);
             coapResponse.setContent(resourceStatus.getContent(), contentFormat);
 
@@ -197,6 +205,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
         //requests accept option(s)) is offered by the Webservice then set the code of the response to
         //400 BAD REQUEST and set a payload with a proper explanation
         else{
+        	log.debug("Reply with NOT ACCEPTABLE 406");
             coapResponse = new CoapResponse(coapRequest.getMessageTypeName(), MessageCode.Name.NOT_ACCEPTABLE_406);
 
             StringBuilder payload = new StringBuilder();
@@ -302,10 +311,14 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
 
         String template = templates.get(contentFormat);
 
-        if(template == null)
+        if(template == null) {
             return null;
-
-        else
-            return String.format(template, ressourceStatusString).getBytes(CoapMessage.CHARSET);
+        }
+        else {
+        	byte[] res = String.format(template, ressourceStatusString).getBytes(CoapMessage.CHARSET);
+        	log.debug("serialized ressource status: " + new String(res));
+        	return res;
+        }
+            
     }
 }

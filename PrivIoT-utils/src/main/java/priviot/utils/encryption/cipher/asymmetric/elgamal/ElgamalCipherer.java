@@ -254,4 +254,9 @@ public class ElgamalCipherer extends AsymmetricCipherer {
         return cipher.getAlgorithm();
     }
 
+	@Override
+	public void setPrivateKey(PrivateKey privateKey) {
+		this.privateKey = privateKey;
+	}
+
 }

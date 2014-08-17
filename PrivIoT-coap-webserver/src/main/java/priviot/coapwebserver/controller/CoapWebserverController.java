@@ -66,8 +66,6 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     
     private static final int NUMBER_OF_THREADS = 1;
     
-    /** Port the coap application listens to */
-    private static final int OWN_PORT = 5684;
     /** URI of the host */
     private static final String HOST_URI = "coap://localhost";
     /** URI of the sensor */
@@ -100,6 +98,17 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     /** Parameters for encryption (used algorithms and keysizes) */
     private EncryptionParameters encryptionParameters;
     
+    /** Port the coap application listens to */
+    private int ownPort;
+    /** url hostname of Smart Service Proxy */
+    private String urlSSP;
+    /** port of Smart Service Proxy */
+    private int portSSP;
+    /** url hostname of CoAP Privacy Proxy */
+    private String urlCPP;
+    /** port of CoAP Privacy Proxy */
+    private int portCPP;
+    
     /**
      * Constructor.
      * 
@@ -111,8 +120,8 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      * @param urlCPP   The host url of the CoAP Privacy Proxy
      * @param portCPP  The port of the CoAP Privacy Proxy
      */
-    public CoapWebserverController(String urlSSP, int portSSP, String urlCPP, int portCPP) {
-        coapServerApplication = new CoapServerApplication(OWN_PORT);
+    public CoapWebserverController(int ownPort, String urlSSP, int portSSP, String urlCPP, int portCPP) {
+        coapServerApplication = new CoapServerApplication(ownPort);
         coapClientApplication = new CoapClientApplication();
         
         sensors = new ArrayList<Sensor>();
@@ -125,7 +134,13 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         
         createSensorsAndWebservices();
         
-        coapRegisterClient = new CoapRegisterClient(coapClientApplication, urlSSP, portSSP, urlCPP, portCPP);
+        coapRegisterClient = new CoapRegisterClient(this, coapClientApplication, urlSSP, portSSP, urlCPP, portCPP);
+        
+        this.ownPort = ownPort;
+        this.urlSSP = urlSSP;
+        this.portSSP = portSSP;
+        this.urlCPP = urlCPP;
+        this.portCPP = portCPP;
     }
     
     /**
@@ -133,13 +148,12 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      */
     public void start() {
         //TODO only test
-        /*
         try {
             coapRegisterClient.sendCertificateRequest();
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Exception during sendCertificateRequest: " + e.getLocalizedMessage());
-        }*/
-        
+        }
+        /*
         log.warn("TEST CODE: load test certificate from file '" + TEST_CERT_FILE_NAME + "'");
         Path certPath = Paths.get(TEST_CERT_FILE_NAME);
         X509Certificate certificate;
@@ -159,20 +173,21 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         }
         URI certUri;
         try {
-            certUri = new URI("coap", null, "localhost", 8080, "/", null, null);
+            certUri = new URI("coap", null, urlSSP, portSSP, "/", null, null);
         } catch (URISyntaxException e) {
             log.error("", e);
             return;
         }
         receivedCertificate(certUri, certificate);
-        
+        */
+        /*
         log.warn("TEST CODE: send register request to CoAP Privacy Proxy");
         // send register request to CoAP Privacy Proxy
         try {
             coapRegisterClient.sendRegisterRequest();
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Exception during sendRegisterRequest: " + e.getMessage());
-        }
+        }*/
     }
     
     private X509Certificate loadCertificateFromFile(Path certPath) throws CertificateException, IOException {

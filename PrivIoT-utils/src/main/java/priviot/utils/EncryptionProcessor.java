@@ -4,6 +4,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
 import java.security.spec.InvalidKeySpecException;
 
 import javax.crypto.BadPaddingException;
@@ -145,7 +146,7 @@ public abstract class EncryptionProcessor {
      * @return
      * @throws EncryptionException
      */
-    public static byte[] getContentOfEncryptedDataPackage(EncryptedSensorDataPackage dataPackage, byte[] privateKey) throws EncryptionException {
+    public static byte[] getContentOfEncryptedDataPackage(EncryptedSensorDataPackage dataPackage, PrivateKey privateKey) throws EncryptionException {
         SymmetricCipherer symmetricCipherer;
         AsymmetricCipherer asymmetricCipherer;
         byte[] decryptedsymmetricKey;
@@ -176,11 +177,7 @@ public abstract class EncryptionProcessor {
         } catch (InvalidAlgorithmParameterException e) {
             throw new EncryptionException("Keysize for asymmetric encryption not supported: " + dataPackage.getAsymmetricEncryptionBitStrength(), e);
         }
-        try {
-            asymmetricCipherer.setPrivateKeyFromByteArray(privateKey);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new EncryptionException("Bad private key", e);
-        }
+        asymmetricCipherer.setPrivateKey(privateKey);
         
         // decrypt symmetric key and initialization vector
         

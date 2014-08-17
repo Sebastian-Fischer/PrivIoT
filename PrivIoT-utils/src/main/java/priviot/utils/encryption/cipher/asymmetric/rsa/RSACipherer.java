@@ -90,6 +90,10 @@ public class RSACipherer extends AsymmetricCipherer {
         KeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
         privateKey = keyFactory.generatePrivate(keySpec);
     }
+    
+    public void setPrivateKey(PrivateKey privateKey) {
+    	this.privateKey = privateKey;
+    }
 
 	@Override
 	public byte[] encrypt(byte[] plaintext) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ShortBufferException {

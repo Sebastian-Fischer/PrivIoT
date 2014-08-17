@@ -2,6 +2,7 @@ package priviot.utils.encryption.cipher;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.spec.InvalidKeySpecException;
 
 import javax.crypto.BadPaddingException;
@@ -46,6 +47,13 @@ public abstract class AsymmetricCipherer extends Cipherer {
      * @return The private key
      */
     public abstract byte[] getPrivateKeyAsByteArray();
+    
+    /**
+     * Sets private key.
+     * If Cipherer.generateKey has been called before, the generated private key will be overwritten.
+     * If Cipherer.generateKey has not been called, only encryption and decryption with the private key is possible.
+     */
+    public abstract void setPrivateKey(PrivateKey privateKey);
     
     /**
      * Sets the private key to the key given in privateKeyBytes.

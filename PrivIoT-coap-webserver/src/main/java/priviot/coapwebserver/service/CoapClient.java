@@ -1,87 +1,87 @@
 package priviot.coapwebserver.service;
 
-import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
-import de.uniluebeck.itm.ncoap.application.client.Token;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.TransmissionInformationProcessor;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Observable;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import com.google.common.util.concurrent.SettableFuture;
+
+import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
+import de.uniluebeck.itm.ncoap.application.client.Token;
+import de.uniluebeck.itm.ncoap.communication.observe.client.UpdateNotificationProcessor;
+import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
+import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.TransmissionInformationProcessor;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
 
 /**
- * Client to communicate with the CoAP Proxy over the CoAP protocol.
+ * Can be used to process a coap Response and control retransmission of a message.
  * 
- * The CoapRegisterClient has two tasks:
- * 1. Register the CoAP-Webserver at a CoAP Privacy Proxy or a Smart Service Proxy.
- *    As reaction the proxy will register itself as observer at the sensor webservices.
- * 2. Get the X.509 certificate of a Smart Service Proxy to get the public key.
+ * Because some of the inherited methods don't get the recipient as parameter,
+ * an own CoapClient instance is needed for every transmission.
+ * The URI of the recipient can be set in constructor if needed.
+ * 
+ * EventListener can be added in two ways:
+ * - Add a SettableFuture<CoapResponse>
+ * - Add a CoapClientListener
+ * The first is thread save and can handle multiple listeners. The callback method can be called only once,
+ * although the recipient answers multiple times (e.g. observation).
+ * The second can save the recipient of the message to get it as parameter in the event 
+ * receivedCoapResponse(URI, CoapResonse). The event is called for every response.
  */
 public class CoapClient implements CoapResponseProcessor, TransmissionInformationProcessor,
-        RetransmissionTimeoutProcessor {
-    
-    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+    RetransmissionTimeoutProcessor, UpdateNotificationProcessor {
 
-    private AtomicBoolean responseReceived;
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+    
+    private SettableFuture<CoapResponse> responseFuture;
+    
     private AtomicInteger transmissionCounter;
     private AtomicBoolean timedOut;
     
-    private List<CoapClientObserver> observers = new ArrayList<CoapClientObserver>();
+    private AtomicInteger responseCounter;
+    
+    private URI recipient; 
+    
+    private CoapClientListener listener;
 
-
+    /**
+     * Constructor.
+     */
     public CoapClient(){
-        this.responseReceived = new AtomicBoolean(false);
         this.transmissionCounter = new AtomicInteger(0);
         this.timedOut = new AtomicBoolean(false);
+        this.responseCounter = new AtomicInteger(0);
+        this.responseFuture = SettableFuture.create();
+    }    
+    
+    /**
+     * Constructor with recipient URI support.
+     */
+    public CoapClient(URI recipient){
+        this.transmissionCounter = new AtomicInteger(0);
+        this.timedOut = new AtomicBoolean(false);
+        this.responseCounter = new AtomicInteger(0);
+        this.responseFuture = SettableFuture.create();
+        this.recipient = recipient;
     }
     
-    public void addObserver(CoapClientObserver observer) {
-        observers.add(observer);
+    public void addListener(CoapClientListener listener) {
+        this.listener = listener;
     }
     
-    public void notifyObservers(CoapResponse coapResponse) {
-        for (CoapClientObserver observer : observers) {
-            if (observer != null) {
-                observer.receivedResponse(coapResponse);
-            }
-        }
+    public SettableFuture<CoapResponse> getResponseFuture(){
+        return this.responseFuture;
     }
-
-    /**
-     * Increases the reponse counter by 1, i.e. {@link #getResponseCount()} will return a higher value after
-     * invocation of this method.
-     *
-     * @param coapResponse the response message
-     */
-    @Override
-    public void processCoapResponse(CoapResponse coapResponse) {
-        responseReceived.set(true);
-        log.info("Received: {}", coapResponse);
-        
-        notifyObservers(coapResponse);
-    }
-
-    /**
-     * Returns the number of responses received
-     * @return the number of responses received
-     */
-    public int getResponseCount(){
-        return this.responseReceived.get() ? 1 : 0;
-    }
-
-
+    
     @Override
     public void messageTransmitted(InetSocketAddress remoteEndpint, int messageID, Token token,
                                    boolean retransmission) {
         int value = transmissionCounter.incrementAndGet();
-
+    
         if(retransmission){
             log.debug("Transmission #{} for message with ID {} to {} (Token: {})",
                       new Object[]{value, messageID, remoteEndpint, token});
@@ -91,18 +91,49 @@ public class CoapClient implements CoapResponseProcessor, TransmissionInformatio
                       new Object[]{messageID, remoteEndpint, token});
         }
     }
-
-
+    
+    
     @Override
     public void processRetransmissionTimeout(InetSocketAddress remoteEndpoint, int messageID, Token token) {
         log.debug("Internal timeout for message with ID {} to {} (Token: {})",
                   new Object[]{messageID, remoteEndpoint, token});
-
+    
         timedOut.set(true);
     }
-
-
+    
+    
     public boolean isTimedOut(){
         return timedOut.get();
+    }
+
+    /**
+    * Increases the reponse counter by 1, i.e. {@link #getResponseCount()} will return a higher value after
+    * invocation of this method.
+    *
+    * @param coapResponse the response message
+    */
+    @Override
+    public void processCoapResponse(CoapResponse coapResponse) {
+        int value = responseCounter.incrementAndGet();
+        log.debug("Received #{}: {}", value, coapResponse);
+        
+        if (listener != null) {
+            listener.receivedResponse(recipient, coapResponse);
+        }
+        
+        responseFuture.set(coapResponse);
+    }
+    
+    /**
+     * Returns the number of responses received
+     * @return the number of responses received
+     */
+    public int getResponseCount(){
+        return responseCounter.intValue();
+    }
+    
+    @Override
+    public boolean continueObservation() {
+        return true;
     }
 }

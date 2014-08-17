@@ -9,18 +9,21 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
+import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
+
 import priviot.coapwebserver.controller.CoapWebserverController;
 
 public class CoapWebserverMain {
 
-	private static String version = "0.1";
+	private final static String version = "0.1";
 	
 	private static Logger log = Logger.getLogger(CoapWebserverMain.class.getName());
 	
-	private static String urlSSP = "localhost";
-	private static int portSSP = 8080;
-	private static String urlCPP = "localhost";
-	private static int portCPP = 8081;
+	private final static int OWN_PORT = CoapServerApplication.DEFAULT_COAP_SERVER_PORT;
+	private final static String urlSSP = "localhost";
+	private final static int portSSP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 2;
+	private final static String urlCPP = "localhost";
+	private final static int portCPP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 2;
 	
 	private static String CONFIG_FILE_NAME = "log4j.xml";
 	
@@ -55,7 +58,7 @@ public class CoapWebserverMain {
     }
 	
 	private static void startController() {
-	    CoapWebserverController controller = new CoapWebserverController(urlSSP, portSSP, urlCPP, portCPP);
+	    CoapWebserverController controller = new CoapWebserverController(OWN_PORT, urlSSP, portSSP, urlCPP, portCPP);
 	    
 	    controller.start();
 	}
