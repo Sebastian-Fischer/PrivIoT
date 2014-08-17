@@ -145,7 +145,7 @@ public abstract class EncryptionProcessor {
      * @return
      * @throws EncryptionException
      */
-    public static String getContentOfEncryptedDataPackage(EncryptedSensorDataPackage dataPackage, byte[] privateKey) throws EncryptionException {
+    public static byte[] getContentOfEncryptedDataPackage(EncryptedSensorDataPackage dataPackage, byte[] privateKey) throws EncryptionException {
         SymmetricCipherer symmetricCipherer;
         AsymmetricCipherer asymmetricCipherer;
         byte[] decryptedsymmetricKey;
@@ -220,7 +220,7 @@ public abstract class EncryptionProcessor {
             throw new EncryptionException("Error during decryption of content", e);
         }
         
-        return new String(decryptedContent);
+        return decryptedContent;
     }
 
 }
