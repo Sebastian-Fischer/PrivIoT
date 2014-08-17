@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
+import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebservice;
 import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LinkAttribute;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
@@ -26,7 +27,6 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
 import de.uniluebeck.itm.ncoap.message.options.OptionValue;
-
 import priviot.cpp.data.Registry;
 import priviot.cpp.data.RegistryEntry;
 
@@ -39,8 +39,10 @@ import priviot.cpp.data.RegistryEntry;
  * The CoapRegistryWebservice uses a {@link WellKnownCoreProcessor} to process responses.
  */
 public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
-    private static int PORT_WEBSERVER = 5684;
-    private static int PORT_SSP = 8080;
+	/** Port of the CoAP Webserver */
+    private int portWebserver;
+    /** Port of the Smart Service Proxy */
+    private int portSSP;
     private static String PATH_CORE_RESSOURCE = "/.well-known/core";
     private static String PATH_REGISTRY_RESSOURCE = "/registry";
     
@@ -59,11 +61,13 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
     CoapRegistryWebserviceListener listener;
     
     
-    public CoapRegistryWebservice(Registry registry, CoapClientApplication clientApplication) {
+    public CoapRegistryWebservice(Registry registry, CoapClientApplication clientApplication, int portSSP, int portWebserver) {
         super(PATH_REGISTRY_RESSOURCE, null, OptionValue.MAX_AGE_DEFAULT);
         
         this.registry = registry;
         this.clientApplication = clientApplication;
+        this.portSSP = portSSP;
+        this.portWebserver = portWebserver;
     }
     
     public void setListener(CoapRegistryWebserviceListener listener) {
@@ -177,19 +181,19 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
     }
     
     private URI createWebserverURI(String hostName) throws URISyntaxException {
-        return new URI("coap", null, hostName, PORT_WEBSERVER, "/", null, null);
+        return new URI("coap", null, hostName, portWebserver, "/", null, null);
     }
     
     private URI createWebserverCoreURI(String hostName) throws URISyntaxException {
-        return new URI("coap", null, hostName, PORT_WEBSERVER, PATH_CORE_RESSOURCE, null, null);
+        return new URI("coap", null, hostName, portWebserver, PATH_CORE_RESSOURCE, null, null);
     }
     
     private URI createWebserviceURI(String hostName, String servicePath) throws URISyntaxException {
-        return new URI("coap", null, hostName, PORT_WEBSERVER, "/" + servicePath, null, null);
+        return new URI("coap", null, hostName, portWebserver, "/" + servicePath, null, null);
     }
     
     private URI createSSPURI(String hostName) throws URISyntaxException {
-        return new URI("coap", null, hostName, PORT_SSP, "/", null, null);
+        return new URI("coap", null, hostName, portSSP, "/", null, null);
     }
 
     /**
@@ -209,7 +213,7 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
         CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, uri);
         WellKnownCoreProcessor responseProcessor = new WellKnownCoreProcessor(internalTasksExecutor);
 
-        this.clientApplication.sendCoapRequest(coapRequest, responseProcessor, new InetSocketAddress(remoteAddress, PORT_WEBSERVER));
+        this.clientApplication.sendCoapRequest(coapRequest, responseProcessor, new InetSocketAddress(remoteAddress, portWebserver));
 
         Futures.addCallback(responseProcessor.getWellKnownCoreFuture(),
                 new FutureCallback<Multimap<String, LinkAttribute>>() {

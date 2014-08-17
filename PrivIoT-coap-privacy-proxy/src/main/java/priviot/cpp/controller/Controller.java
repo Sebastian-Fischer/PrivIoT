@@ -33,7 +33,6 @@ import priviot.utils.data.transfer.EncryptedSensorDataPackage;
  */
 public class Controller implements CoapRegistryWebserviceListener,
         CoapObserverListener {
-    private final static int OWN_PORT = 8081;
     
     /** Root path of forwarding webservices. The concrete webservices are /forwarding/1, /forwarding/2 */
     private final static String PATH_FORWARDING = "/forwarding/";
@@ -59,8 +58,20 @@ public class Controller implements CoapRegistryWebserviceListener,
     
     private CoapServerApplication coapServerApplication;
     
-    public Controller() {
+    /** port of the own CoapServerApplication */
+    private int ownPort;
+    
+    /** port of the Smart Service Proxy */
+    private int portSSP;
+    
+    /** port of the CoAP Webserver */
+    private int portWebserver;
+    
+    public Controller(int ownPort, int portSSP, int portWebserver) {
         super();
+        this.ownPort = ownPort;
+        this.portSSP = portSSP;
+        this.portWebserver = portWebserver;
     }
     
     public void start() {
@@ -68,17 +79,17 @@ public class Controller implements CoapRegistryWebserviceListener,
         
         coapClientApplication = new CoapClientApplication();
         
-        coapServerApplication = new CoapServerApplication(OWN_PORT);
+        coapServerApplication = new CoapServerApplication(ownPort);
         
         coapObserver = new CoapObserver(coapClientApplication);
         coapObserver.setListener(this);
         
-        coapRegistryWebservice = new CoapRegistryWebservice(registry, coapClientApplication);
+        coapRegistryWebservice = new CoapRegistryWebservice(registry, coapClientApplication, portSSP, portWebserver);
         coapRegistryWebservice.setListener(this);
         
         coapServerApplication.registerService(coapRegistryWebservice);
         
-        coapRegisterClient = new CoapRegisterClient(coapClientApplication);
+        coapRegisterClient = new CoapRegisterClient(coapClientApplication, portSSP);
         
         coapForwardingWebservices = new ArrayList<CoapForwardingWebservice>();
     }
@@ -91,6 +102,9 @@ public class Controller implements CoapRegistryWebserviceListener,
         String path = PATH_FORWARDING + coapForwardingWebservices.size() + 1;
         CoapForwardingWebservice coapForwardingWebservice = new CoapForwardingWebservice(path, uriSSP);
         coapForwardingWebservices.add(coapForwardingWebservice);
+        //TODO: create a new CoapServerApplication for the SSP to separate SSPs from each other
+        coapServerApplication.registerService(coapForwardingWebservice);
+        log.info("Registered new forwarding webservice: " + coapForwardingWebservice.getPath());
         
         // send registration to Smart Service Proxy
         // The proxy will then register itself as observer at the CoapForwardingWebservice

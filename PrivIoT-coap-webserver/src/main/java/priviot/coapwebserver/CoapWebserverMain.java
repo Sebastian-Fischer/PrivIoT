@@ -19,11 +19,11 @@ public class CoapWebserverMain {
 	
 	private static Logger log = Logger.getLogger(CoapWebserverMain.class.getName());
 	
-	private final static int OWN_PORT = CoapServerApplication.DEFAULT_COAP_SERVER_PORT;
+	private final static int OWN_PORT = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 1;
 	private final static String urlSSP = "localhost";
 	private final static int portSSP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 2;
 	private final static String urlCPP = "localhost";
-	private final static int portCPP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 2;
+	private final static int portCPP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT;
 	
 	private static String CONFIG_FILE_NAME = "log4j.xml";
 	

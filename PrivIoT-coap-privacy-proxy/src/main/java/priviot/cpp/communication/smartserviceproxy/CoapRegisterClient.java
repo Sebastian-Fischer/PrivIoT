@@ -25,7 +25,7 @@ public class CoapRegisterClient {
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
-    private static int portSSP = 8080;
+    private int portSSP;
     
     /** Can send CoAP requests using the CoapRegisterClient */
     private CoapClientApplication coapClientApplication;
@@ -36,8 +36,9 @@ public class CoapRegisterClient {
      * @param coapClientApplication  The CoapClientApplication object
      * @param urlSSP   The host url of the Smart Service Proxy
      */
-    public CoapRegisterClient(CoapClientApplication coapClientApplication) {
+    public CoapRegisterClient(CoapClientApplication coapClientApplication, int portSSP) {
         this.coapClientApplication = coapClientApplication;
+        this.portSSP = portSSP;
     }
     
     /**
@@ -52,7 +53,7 @@ public class CoapRegisterClient {
         
         MessageType.Name messageType = MessageType.Name.CON;
         
-        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, uriSSP, false);
+        CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.POST, uriSSP, false);
         
         // Set recipient (webservice host)
         InetSocketAddress recipient;
