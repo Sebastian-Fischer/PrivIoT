@@ -25,6 +25,8 @@ import priviot.utils.data.transfer.EncryptedSensorDataPackage;
 import priviot.utils.encryption.EncryptionHelper;
 import priviot.utils.encryption.cipher.SymmetricCipherer;
 import priviot.utils.encryption.cipher.symmetric.aes.AESCipherer;
+import priviot.utils.pseudonymization.HMac256PseudonymGenerator;
+import priviot.utils.pseudonymization.PseudonymizationException;
 
 
 public class TestMain {
@@ -57,7 +59,7 @@ public class TestMain {
             System.out.println("=> EncryptedSensorDataPackage with AES encrypted content works! :)");
         }
         else {
-            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content doesn't works! :(");
+            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content doesn't work! :(");
             return;
         }
         
@@ -68,7 +70,7 @@ public class TestMain {
             System.out.println("=> RSA Encryption with works! :)");
         }
         else {
-            System.out.println("=> RSA Encryption doesn't works! :(");
+            System.out.println("=> RSA Encryption doesn't work! :(");
             return;
         }
         
@@ -80,7 +82,7 @@ public class TestMain {
                 System.out.println("=> ElGamal Encryption works! :)");
             }
             else {
-                System.out.println("=> ElGamal Encryption doesn't works! :(");
+                System.out.println("=> ElGamal Encryption doesn't work! :(");
                 return;
             }
         }
@@ -91,8 +93,28 @@ public class TestMain {
             System.out.println("=> EncryptedSensorDataPackage with AES encrypted content and RSA encrypted key works! :)");
         }
         else {
-            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content and RSA encrypted key doesn't works! :(");
+            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content and RSA encrypted key doesn't work! :(");
             return;
+        }
+        
+        System.out.println();
+        System.out.println("-- Test HMac256PseudonymGenerator");
+        if (testHmac256PseudonymGenerator()) {
+        	System.out.println("=> HMac256PseudonymGenerator works! :)");
+        }
+        else {
+        	System.out.println("=> HMac256PseudonymGenerator doesn't work! :(");
+        	return;
+        }
+        
+        System.out.println();
+        System.out.println("-- Test PseudonymizationProcessor");
+        if (testPseudonymizationProcessor()) {
+        	System.out.println("=> PseudonymizationProcessor works! :)");
+        }
+        else {
+        	System.out.println("=> PseudonymizationProcessor doesn't work! :(");
+        	return;
         }
     }
     
@@ -649,6 +671,94 @@ public class TestMain {
         System.out.println("Decrypted Message: '" + new String(plaintextOut) + "'");
         
         return (Arrays.equals(plaintextOut, plaintextIn));
+    }
+    
+    private static boolean testHmac256PseudonymGenerator() {
+    	HMac256PseudonymGenerator generator = new HMac256PseudonymGenerator();
+    	String text = "plaintextplaintextplaintext";
+    	
+    	try {
+			generator.inititialize();
+		} catch (NoSuchAlgorithmException e) {
+			System.out.println("Exception during initialization of HMac256PseudonymGenerator: " + e.getMessage());
+			return false;
+		}
+    	
+    	byte[] secret = generator.createSecret();
+    	
+    	System.out.println("Generate two HMAC-256");
+    	System.out.println("  for plaintext '" + text + "'");
+    	System.out.println("  with secret " + Arrays.toString(secret));
+    	
+    	String pseudonym;
+    	try {
+			pseudonym = generator.generatePseudonym(text, secret);
+		} catch (InvalidKeyException e) {
+			System.out.println("Exception during generation of pseudonym: " + e.getMessage());
+			return false;
+		}
+    	
+    	System.out.println("Pseudonym is: " + pseudonym);
+    	
+    	return true;
+    }
+    
+    private static boolean testPseudonymizationProcessor() {
+    	String plaintext = "plaintextplaintextplaintextplaintext";
+    	byte[] secret;
+    	int timePeriod = 4;
+    	
+    	System.out.println("timePeriod: " + timePeriod);
+    	System.out.println("Plaintext: '" + plaintext + "'");
+    	
+		try {
+			secret = PseudonymizationProcessor.generateHmac256Secret();
+		} catch (PseudonymizationException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	System.out.println("Generated secret: " + Arrays.toString(secret));
+    	
+    	String pseudonym1;
+		try {
+			pseudonym1 = PseudonymizationProcessor.generateHmac256Pseudonym(plaintext, timePeriod, secret);
+		} catch (PseudonymizationException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	System.out.println("First Pseudonym: '" + pseudonym1 + "'");
+    	
+    	String pseudonym2;
+		try {
+			pseudonym2 = PseudonymizationProcessor.generateHmac256Pseudonym(plaintext, timePeriod, secret);
+		} catch (PseudonymizationException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	System.out.println("Second Pseudonym: '" + pseudonym2 + "'");
+    	
+    	System.out.println("Sleep 5 seconds...");
+    	
+    	try {
+			Thread.sleep(5000);
+		} catch (InterruptedException e) {
+			System.out.println("Interrupted: " + e.getMessage());
+		}
+    	
+    	String pseudonym3;
+		try {
+			pseudonym3 = PseudonymizationProcessor.generateHmac256Pseudonym(plaintext, timePeriod, secret);
+		} catch (PseudonymizationException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	System.out.println("Third Pseudonym: '" + pseudonym3 + "'");
+    	
+    	return (pseudonym1.equals(pseudonym2) && !pseudonym1.equals(pseudonym3));
     }
     
     
