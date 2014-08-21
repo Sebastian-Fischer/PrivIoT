@@ -3,6 +3,7 @@ package priviot.utils.pseudonymization;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -10,11 +11,11 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.codec.binary.Base64;
 
 /**
- * A concrete PseudonymGenerator, that produces pseudonyms using HMAC-256.
+ * A concrete PseudonymGenerator, that produces pseudonyms using HMAC-SHA256.
  * 
  * See RFC 2104 for HMAC algorithm.
  */
-public class HMac256PseudonymGenerator implements PseudonymGenerator {
+public class HMacSha256PseudonymGenerator implements PseudonymGenerator {
 
 	private static final String ALGORITHM = "HmacSHA256";
 	private static final int BLOCK_SIZE = 256;
@@ -50,6 +51,8 @@ public class HMac256PseudonymGenerator implements PseudonymGenerator {
 		mac.init(keySpec);
 		
 		byte[] macValue = mac.doFinal(value.getBytes());
+		
+		System.out.println("pseudonym: " + Arrays.toString(macValue));
 		
 		return Base64.encodeBase64String(macValue);
 	}	

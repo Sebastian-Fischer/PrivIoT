@@ -25,7 +25,7 @@ import priviot.utils.data.transfer.EncryptedSensorDataPackage;
 import priviot.utils.encryption.EncryptionHelper;
 import priviot.utils.encryption.cipher.SymmetricCipherer;
 import priviot.utils.encryption.cipher.symmetric.aes.AESCipherer;
-import priviot.utils.pseudonymization.HMac256PseudonymGenerator;
+import priviot.utils.pseudonymization.HMacSha256PseudonymGenerator;
 import priviot.utils.pseudonymization.PseudonymizationException;
 
 
@@ -674,7 +674,7 @@ public class TestMain {
     }
     
     private static boolean testHmac256PseudonymGenerator() {
-    	HMac256PseudonymGenerator generator = new HMac256PseudonymGenerator();
+    	HMacSha256PseudonymGenerator generator = new HMacSha256PseudonymGenerator();
     	String text = "plaintextplaintextplaintext";
     	
     	try {

@@ -4,7 +4,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
-import priviot.utils.pseudonymization.HMac256PseudonymGenerator;
+import priviot.utils.pseudonymization.HMacSha256PseudonymGenerator;
 import priviot.utils.pseudonymization.PseudonymizationException;
 
 /**
@@ -18,7 +18,7 @@ public class PseudonymizationProcessor {
 	 * @throws PseudonymizationException
 	 */
 	public static byte[] generateHmac256Secret() throws PseudonymizationException {
-		HMac256PseudonymGenerator generator = new HMac256PseudonymGenerator();
+		HMacSha256PseudonymGenerator generator = new HMacSha256PseudonymGenerator();
     	
 		try {
 			generator.inititialize();
@@ -63,7 +63,7 @@ public class PseudonymizationProcessor {
 		String plaintext = original + roundedSeconds;
 		
 		// initialize generator
-		HMac256PseudonymGenerator generator = new HMac256PseudonymGenerator();
+		HMacSha256PseudonymGenerator generator = new HMacSha256PseudonymGenerator();
 		try {
 			generator.inititialize();
 		} catch (NoSuchAlgorithmException e) {
