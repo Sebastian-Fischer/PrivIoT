@@ -3,7 +3,6 @@ package priviot.utils.pseudonymization;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Arrays;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -19,7 +18,6 @@ public class HMacSha256PseudonymGenerator implements PseudonymGenerator {
 
 	private static final String ALGORITHM = "HmacSHA256";
 	private static final int BLOCK_SIZE = 256;
-	private static final byte[] CHAR_HASHTAG = {35};
 	
 	private Mac mac;
 	
@@ -52,8 +50,6 @@ public class HMacSha256PseudonymGenerator implements PseudonymGenerator {
 		mac.init(keySpec);
 		
 		byte[] macValue = mac.doFinal(value.getBytes());
-		
-		System.out.println("pseudonym: " + Arrays.toString(macValue));
 		
 		// lineLength must be long enough to ensure, there is no end of line
 		// otherwise there will be the line separator character always at the same position
