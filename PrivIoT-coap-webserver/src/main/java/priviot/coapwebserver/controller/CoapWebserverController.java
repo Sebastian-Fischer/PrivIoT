@@ -67,14 +67,19 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     private static final String HOST_URI = "coap://localhost";
     /** URI for pseudonyms */
     private static final String PSEUDONYM_URI_HOST = "http://www.pseudonym.com/";
+    
     /** URI of the sensor */
     private static final String SENSOR1_URI_PATH = "/sensor1";
     /** frequency in which new values are published by the sensor in seconds */
-    private static final int SENSOR1_UPDATE_FREQUENCY = 10;
+    private static final int SENSOR1_UPDATE_FREQUENCY = 5;
+    /** URI of the sensor */
+    private static final String SENSOR2_URI_PATH = "/sensor2";
+    /** frequency in which new values are published by the sensor in seconds */
+    private static final int SENSOR2_UPDATE_FREQUENCY = 10;
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
-    /** Listens to a local port. Web services can be registered here. */
+    /** Listens to a local port. Web servers can be registered here. */
     private CoapServerApplication coapServerApplication;
     
     /** Can send CoAP requests using the CoapRegisterClient */
@@ -107,7 +112,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      * @param portCPP  The port of the CoAP Privacy Proxy
      */
     public CoapWebserverController(int ownPort, String urlSSP, int portSSP, String urlCPP, int portCPP) {
-        coapServerApplication = new CoapServerApplication(ownPort);
+    	coapServerApplication = new CoapServerApplication(ownPort);
         coapClientApplication = new CoapClientApplication();
         
         sensors = new ArrayList<Sensor>();
@@ -149,7 +154,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         sensor1.start();
         
         // create and initialize a GeographicSensor and it's Webservice
-        GeographicSensor sensor2 = new GeographicSensor(SENSOR1_URI_PATH, SENSOR1_UPDATE_FREQUENCY, executorService);
+        GeographicSensor sensor2 = new GeographicSensor(SENSOR2_URI_PATH, SENSOR2_UPDATE_FREQUENCY, executorService);
         initializeSensorAndCreateWebservice(sensor2);
         sensor2.start();
     }
@@ -185,6 +190,8 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      */
     @Override
     public void publishData(Sensor sensor, SensorData data) {
+    	log.info("New sensor data from sensor " + sensor.getSensorUriPath());
+    	
     	String sensorURI = HOST_URI + sensor.getSensorUriPath();
     	
     	// create the pseudonym for the actual time slot

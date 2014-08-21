@@ -91,7 +91,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
     }
     
     public void updateRdfSensorData(JenaRdfModelWithLifetime rdfSensorData) {
-    	log.info("update sensor data");
+    	log.debug("update sensor data for sensor " + getPath());
     	setResourceStatus(rdfSensorData, updateIntervalMillis / 1000);
     }
     
@@ -300,7 +300,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
             return null;
         }
         
-        log.info("Ressource Status: " + ressourceStatusString);
+        log.debug("Ressource Status: " + ressourceStatusString);
 
         String template = templates.get(contentFormat);
 
