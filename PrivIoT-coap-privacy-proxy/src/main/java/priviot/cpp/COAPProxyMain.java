@@ -21,8 +21,13 @@ public class COAPProxyMain {
 	
 	private final static String CONFIG_FILE_NAME = "log4j.xml";
 	
+	/** CoAP port of the Smart Service Proxies */
 	private final static int PORT_SSP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 2;
-	private final static int OWN_PORT = CoapServerApplication.DEFAULT_COAP_SERVER_PORT;
+	/** CoAP port of the own interface for Smart Service Proxies */
+	private final static int OWN_PORT_SSP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT;
+	/** CoAP port of the own interface for CoAP-Webservers */
+	private final static int OWN_PORT_WEBSERVER = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 3;
+	/** CoAP port of the CoAP-Webservers */
 	private final static int PORT_WEBSERVER = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 1;
 	
 	
@@ -38,7 +43,7 @@ public class COAPProxyMain {
 		System.out.println("Configure logging: done");
 		
 		log.info("start controller");
-		Controller controller = new Controller(OWN_PORT, PORT_SSP, PORT_WEBSERVER);
+		Controller controller = new Controller(OWN_PORT_WEBSERVER, OWN_PORT_SSP, PORT_SSP, PORT_WEBSERVER);
 		controller.start();
 		log.info("start controller: done");
 	}

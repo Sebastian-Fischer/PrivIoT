@@ -84,7 +84,7 @@ public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSen
     }
     
     public void updateRdfSensorData(EncryptedSensorDataPackage dataPackage) {
-    	log.info("New sensor data for SSP '" + uriSSP.getHost() + "' available");
+    	log.debug("New sensor data for SSP '" + uriSSP.getHost() + "' available");
     	setResourceStatus(dataPackage, dataPackage.getContentLifetime());
     }
     
@@ -222,7 +222,7 @@ public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSen
             return null;
         }
         
-        log.info("Ressource Status: " + ressourceStatusString);
+        log.debug("Ressource Status: " + ressourceStatusString);
 
         String template = templates.get(contentFormat);
 

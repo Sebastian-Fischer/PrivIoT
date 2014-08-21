@@ -56,10 +56,17 @@ public class Controller implements CoapRegistryWebserviceListener,
     
     private CoapClientApplication coapClientApplication;
     
-    private CoapServerApplication coapServerApplication;
+    /** 
+     * Listens to a local port. web services can be registered here.
+     * Used for web services for CoAP-Webservers.
+     */
+    private CoapServerApplication coapServerApplicationWebservers;
     
-    /** port of the own CoapServerApplication */
-    private int ownPort;
+    /** 
+     * Listens to a local port. Web servers can be registered here.
+     * Used for web services for Smart Service Proxies.
+     */
+    private CoapServerApplication coapServerApplicationSSPs;
     
     /** port of the Smart Service Proxy */
     private int portSSP;
@@ -67,27 +74,31 @@ public class Controller implements CoapRegistryWebserviceListener,
     /** port of the CoAP Webserver */
     private int portWebserver;
     
-    public Controller(int ownPort, int portSSP, int portWebserver) {
+    public Controller(int ownPortWebservers, int ownPortSSPs, int portSSP, int portWebserver) {
         super();
-        this.ownPort = ownPort;
         this.portSSP = portSSP;
         this.portWebserver = portWebserver;
-    }
-    
-    public void start() {
-        registry = new Registry();
+        
+        log.info("Open CoAP interface for webservers on port " + ownPortWebservers);
+        log.info("Open CoAP interface for Smart Service Proxies on port " + ownPortSSPs);
         
         coapClientApplication = new CoapClientApplication();
         
-        coapServerApplication = new CoapServerApplication(ownPort);
-        
+        coapServerApplicationWebservers = new CoapServerApplication(ownPortWebservers);
+    	coapServerApplicationSSPs = new CoapServerApplication(ownPortSSPs);
+    	
+    	registry = new Registry();
+    }
+    
+    public void start() {        
         coapObserver = new CoapObserver(coapClientApplication);
         coapObserver.setListener(this);
         
         coapRegistryWebservice = new CoapRegistryWebservice(registry, coapClientApplication, portSSP, portWebserver);
         coapRegistryWebservice.setListener(this);
+        coapServerApplicationWebservers.registerService(coapRegistryWebservice);
         
-        coapServerApplication.registerService(coapRegistryWebservice);
+        log.info("CoapRegistryWebservice started");
         
         coapRegisterClient = new CoapRegisterClient(coapClientApplication, portSSP);
         
@@ -96,14 +107,14 @@ public class Controller implements CoapRegistryWebserviceListener,
     
     @Override
     public void registeredNewWebserver(URI uriWebserver, URI uriSSP) {
-        log.info("registered new webserver: " + uriWebserver.getHost() + " with SSP " + uriSSP.getHost());
+        log.info("Registered new webserver: " + uriWebserver.getHost() + " with SSP " + uriSSP.getHost());
         
         // create and start a CoapForwardingWebservice for this Smart Service Proxy
         String path = PATH_FORWARDING + coapForwardingWebservices.size() + 1;
         CoapForwardingWebservice coapForwardingWebservice = new CoapForwardingWebservice(path, uriSSP);
         coapForwardingWebservices.add(coapForwardingWebservice);
         //TODO: create a new CoapServerApplication for the SSP to separate SSPs from each other
-        coapServerApplication.registerService(coapForwardingWebservice);
+        coapServerApplicationSSPs.registerService(coapForwardingWebservice);
         log.info("Registered new forwarding webservice: " + coapForwardingWebservice.getPath());
         
         // send registration to Smart Service Proxy
@@ -117,7 +128,7 @@ public class Controller implements CoapRegistryWebserviceListener,
     
     @Override
     public void registeredNewWebservice(URI uriWebservice) {
-        log.info("registered new webservice. send observe request.");
+        log.info("Registered new webservice " + uriWebservice.getHost() + uriWebservice.getPath() + ". send observe request.");
         
         // register as observer
         try {
@@ -138,7 +149,7 @@ public class Controller implements CoapRegistryWebserviceListener,
         // get URI of Smart Service Proxy to forward the status message
         URI uriSSP = registryEntry.getSSP();
         
-        log.debug("Forward received status from '" + uriWebservice.getHost() + uriWebservice.getPath() + 
+        log.info("Forward received status from '" + uriWebservice.getHost() + uriWebservice.getPath() + 
                   "' to SSP '" + uriSSP.getHost() + ":" + uriSSP.getPort() + "'");
         
         // convert content from ChannelBuffer to EncryptedSensorDataPackage
