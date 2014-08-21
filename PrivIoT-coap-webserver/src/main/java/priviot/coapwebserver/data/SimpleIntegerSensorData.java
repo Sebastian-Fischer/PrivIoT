@@ -13,7 +13,7 @@ public class SimpleIntegerSensorData extends SensorData {
 	 * @param sensorURI The URI of the Sensor
 	 */
 	public SimpleIntegerSensorData(String sensorURI) {
-		setSensorURI(sensorURI);
+		setSensorUriPath(sensorURI);
 	}
 
 	/** Returns the data */

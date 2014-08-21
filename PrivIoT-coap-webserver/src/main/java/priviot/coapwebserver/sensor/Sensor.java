@@ -32,7 +32,11 @@ public abstract class Sensor {
 	 */
 	private int updateFrequency = 0;
 	
-	private String sensorURI = "";
+	private String sensorUriPath = "";
+	
+	/** The secret of the sensor, used to create the pseudonyms */
+	private byte[] secret;
+	
 	
 	protected void setScheduledExecutorService(ScheduledExecutorService scheduledExecutorService) {
 	    this.scheduledExecutorService = scheduledExecutorService;
@@ -74,13 +78,23 @@ public abstract class Sensor {
 	}
 	
 	/** Returns the URI of the sensor */
-	public String getSensorURI() {
-		return sensorURI;
+	public String getSensorUriPath() {
+		return sensorUriPath;
 	}
 	
 	/** Sets the URI of the sensor */
-	protected void setSensorURI(String sensorURI) {
-		this.sensorURI = sensorURI;
+	protected void setSensorUriPath(String sensorUriPath) {
+		this.sensorUriPath = sensorUriPath;
+	}
+	
+	/** Sets the secret of the sensor, used to create the pseudonyms */
+	public byte[] getSecret() {
+		return secret;
+	}
+
+	/** Sets the secret of the sensor, used to create the pseudonyms */
+	public void setSecret(byte[] secret) {
+		this.secret = secret;
 	}
 	
 	/**
@@ -113,7 +127,7 @@ public abstract class Sensor {
 	protected void notifyObservers(SensorData newData) {
 		if (newData != null) {
 			for (SensorObserver observer : observers) {
-				observer.publishData(newData);
+				observer.publishData(this, newData);
 			}
 		}
 	}
@@ -122,6 +136,5 @@ public abstract class Sensor {
 	 * The sensor gets the data of the sensor device and publishes it.
 	 */
 	protected abstract void getAndPublishSensorData();
-	
 	
 }

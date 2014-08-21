@@ -21,7 +21,7 @@ public class SimpleIntegerSensor extends Sensor {
 	 */
 	public SimpleIntegerSensor(String sensorURI, int updateFrequency, ScheduledExecutorService executorService) {
 	    setScheduledExecutorService(executorService);
-		setSensorURI(sensorURI);
+		setSensorUriPath(sensorURI);
 		setUpdateFrequency(updateFrequency);
 		
 		actualData = (int)(Math.round(Math.random() * 100));
@@ -33,7 +33,7 @@ public class SimpleIntegerSensor extends Sensor {
 		actualData += 5 - (int)(Math.round(Math.random() * 10));
 		
 		// generate SensorData object
-		SimpleIntegerSensorData sensorData = new SimpleIntegerSensorData(getSensorURI());
+		SimpleIntegerSensorData sensorData = new SimpleIntegerSensorData(getSensorUriPath());
 		sensorData.setData(actualData);
 		sensorData.setLifetime(getUpdateFrequency());
 		

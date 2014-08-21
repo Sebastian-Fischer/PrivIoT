@@ -1,25 +1,23 @@
 package priviot.coapwebserver.data;
 
-import com.hp.hpl.jena.rdf.model.Model;
-
 /**
  * Superclass for a data set of a sensor.
  */
 public abstract class SensorData {
 	/** The URI of the sensor */
-	protected String sensorURI;
+	protected String sensorUriPath;
 	
 	/** Lifetime of the data in seconds */
 	protected int lifetime;
 	
 	/** Returns the URI of the sensor */
-	public String getSensorURI() {
-		return sensorURI;
+	public String getSensorUriPath() {
+		return sensorUriPath;
 	}
 	
 	/** Sets the URI of the sensor */
-	public void setSensorURI(String sensorURI) {
-		this.sensorURI = sensorURI;
+	public void setSensorUriPath(String sensorUriPath) {
+		this.sensorUriPath = sensorUriPath;
 	}
 	
 	/** Returns the lifetime of the data */

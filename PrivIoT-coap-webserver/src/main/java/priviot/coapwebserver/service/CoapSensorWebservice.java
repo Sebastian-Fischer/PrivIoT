@@ -3,17 +3,12 @@ package priviot.coapwebserver.service;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
-import javax.crypto.NoSuchPaddingException;
 
 import org.apache.log4j.Logger;
 
@@ -37,8 +32,6 @@ import priviot.utils.data.EncryptionParameters;
 import priviot.utils.data.transfer.EncryptedSensorDataPackage;
 import priviot.utils.data.transfer.PrivIoTContentFormat;
 import priviot.utils.encryption.EncryptionException;
-import priviot.utils.encryption.cipher.AsymmetricCipherer;
-import priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
 import priviot.coapwebserver.data.JenaRdfModelWithLifetime;
 import priviot.coapwebserver.data.KeyDatabase;
 import priviot.coapwebserver.data.KeyDatabaseEntry;

@@ -10,5 +10,5 @@ public interface SensorObserver {
 	 * Sends new data from the Sensor to the SensorObserver.
 	 * @param data The new Data as RDFData.
 	 */
-	void publishData(SensorData data);
+	void publishData(Sensor sensor, SensorData data);
 }
