@@ -40,6 +40,7 @@ public abstract class EncryptionProcessor {
      */
     public static EncryptedSensorDataPackage createEncryptedDataPackage(String content, 
             int contentLifetime,
+            String sensorUri,
             String symmetricEncryptionAlgorithm, int symmetricEncryptionKeySize, 
             String asymmetricEncryptionAlgorithm, int asymmetricEncryptionKeySize,
             byte[] publicKeyRecipient) throws EncryptionException {
@@ -124,6 +125,7 @@ public abstract class EncryptionProcessor {
         
         // build data package
         
+        dataPackage.setSensorUri(sensorUri);
         dataPackage.setAsymmetricEncryptionMethod(asymmetricCipherer.getUsedAlgorithm());
         dataPackage.setAsymmetricEncryptionBitStrength(asymmetricEncryptionKeySize);
         dataPackage.setSymmetricEncryptionMethod(symmetricCipherer.getUsedAlgorithm());

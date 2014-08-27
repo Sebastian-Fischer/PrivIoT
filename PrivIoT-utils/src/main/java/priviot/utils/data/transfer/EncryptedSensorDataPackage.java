@@ -23,6 +23,9 @@ import priviot.utils.data.DataPackageParsingException;
  */
 public class EncryptedSensorDataPackage {
     
+	
+	private String sensorUri = "";
+	
     /** Asymmetric encryption method used to encrypt the key */
     private String asymmetricEncryptionMethod = "";
     /** Bit strength used with asymmetricEncryptionMethod to encrypt the key */
@@ -83,6 +86,14 @@ public class EncryptedSensorDataPackage {
     		return parts[0];
     	}
     }
+    
+    public String getSensorUri() {
+		return sensorUri;
+	}
+
+	public void setSensorUri(String sensorUri) {
+		this.sensorUri = sensorUri;
+	}
 
     public void setAsymmetricEncryptionMethod(String asymmetricEncryptionMethod) {
         this.asymmetricEncryptionMethod = asymmetricEncryptionMethod;
@@ -148,6 +159,7 @@ public class EncryptedSensorDataPackage {
     /**
      * Returns the data of the object as byte array in the following form:
      * <encrypted>
+     *   <sensorUri>[sensorUri]</sensorUri>
      *   <asymmetricEncryptionMethod>[asymmetricEncryptionMethod}</asymmetricEncryptionMethod>
      *   <asymmetricEncryptionBitStrength>[asymmetricEncryptionBitStrength]</asymmetricEncryptionBitStrength>
      *   <symmetricEncryptionMethod>[symmetricEncryptionMethod]</symmetricEncryptionMethod>
@@ -173,6 +185,10 @@ public class EncryptedSensorDataPackage {
         Document document = builder.newDocument();
         
         Element rootElement = document.createElement("encrypted");
+        
+        Element elementSensorUri = document.createElement("sensorUri");
+        elementSensorUri.appendChild( document.createTextNode(sensorUri) );
+        rootElement.appendChild(elementSensorUri);
         
         Element elementAsymmetricEncryptionMethod = document.createElement("asymmetricEncryptionMethod");
         elementAsymmetricEncryptionMethod.appendChild( document.createTextNode(asymmetricEncryptionMethod) );
@@ -214,6 +230,7 @@ public class EncryptedSensorDataPackage {
     /**
      * Creates an EncryptedSensorDataPackage from a string containing xml data in the format:
      * <encrypted>
+     *   <sensorUri>[sensorUri]</sensorUri>
      *   <asymmetricEncryptionMethod>[asymmetricEncryptionMethod}</asymmetricEncryptionMethod>
      *   <asymmetricEncryptionBitStrength>[asymmetricEncryptionBitStrength]</asymmetricEncryptionBitStrength>
      *   <symmetricEncryptionMethod>[symmetricEncryptionMethod]</symmetricEncryptionMethod>
@@ -260,6 +277,7 @@ public class EncryptedSensorDataPackage {
         
         Node rootElement = document.getChildNodes().item(0);
         
+        Node elementSensorUri = null;
         Node elementAsymmetricEncryptionMethod = null;
         Node elementAsymmetricEncryptionBitStrength = null;
         Node elementSymmetricEncryptionMethod = null;
@@ -272,7 +290,10 @@ public class EncryptedSensorDataPackage {
         for (int i = 0; i < rootElement.getChildNodes().getLength(); i++) {
             Node node = rootElement.getChildNodes().item(i);
             
-            if ("asymmetricEncryptionMethod".equals(node.getNodeName())) {
+            if ("sensorUri".equals(node.getNodeName())) {
+                elementSensorUri = node;
+            }
+            else if ("asymmetricEncryptionMethod".equals(node.getNodeName())) {
                 elementAsymmetricEncryptionMethod = node;
             }
             else if ("asymmetricEncryptionBitStrength".equals(node.getNodeName())) {
@@ -298,6 +319,9 @@ public class EncryptedSensorDataPackage {
             }
         }
         
+        if (elementSensorUri == null) {
+            throw new DataPackageParsingException("Missing node: sensorUri");
+        }
         if (elementAsymmetricEncryptionMethod == null) {
             throw new DataPackageParsingException("Missing node: asymmetricEncryptionMethod");
         }
@@ -323,6 +347,9 @@ public class EncryptedSensorDataPackage {
             throw new DataPackageParsingException("Missing node: encryptedKey");
         }
         
+        if (elementSensorUri.getChildNodes().getLength() > 1) {
+            throw new DataPackageParsingException("Unexpected content in node sensorUri");
+        }
         if (elementAsymmetricEncryptionMethod.getChildNodes().getLength() > 1) {
             throw new DataPackageParsingException("Unexpected content in node asymmetricEncryptionMethod");
         }
@@ -348,6 +375,7 @@ public class EncryptedSensorDataPackage {
             throw new DataPackageParsingException("Unexpected content in node encryptedKey");
         }
         
+        sensorUri = elementSensorUri.getTextContent();
         asymmetricEncryptionMethod = elementAsymmetricEncryptionMethod.getTextContent();
         asymmetricEncryptionBitStrength = Integer.parseInt(elementAsymmetricEncryptionBitStrength.getTextContent());
         symmetricEncryptionMethod = elementSymmetricEncryptionMethod.getTextContent();
