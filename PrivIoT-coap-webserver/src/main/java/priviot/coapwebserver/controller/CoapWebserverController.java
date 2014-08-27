@@ -29,7 +29,7 @@ import com.hp.hpl.jena.vocabulary.RDFS;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import priviot.coapwebserver.data.GeographicSensorData;
-import priviot.coapwebserver.data.JenaRdfModelWithLifetime;
+import priviot.coapwebserver.data.ResourceStatus;
 import priviot.coapwebserver.data.KeyDatabase;
 import priviot.coapwebserver.data.KeyDatabaseEntry;
 import priviot.coapwebserver.data.SensorData;
@@ -72,11 +72,11 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     /** URI of the sensor */
     private static final String SENSOR1_URI_PATH = "/sensor1";
     /** frequency in which new values are published by the sensor in seconds */
-    private static final int SENSOR1_UPDATE_FREQUENCY = 5;
+    private static final int SENSOR1_UPDATE_FREQUENCY = 20;
     /** URI of the sensor */
     private static final String SENSOR2_URI_PATH = "/sensor2";
     /** frequency in which new values are published by the sensor in seconds */
-    private static final int SENSOR2_UPDATE_FREQUENCY = 10;
+    private static final int SENSOR2_UPDATE_FREQUENCY = 30;
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
@@ -175,10 +175,9 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
 	        try {
 				secret = PseudonymizationProcessor.generateHmac256Secret();
 			} catch (PseudonymizationException e) {
-				System.out.println(e.getMessage());
+				log.error("Error while generating secret", e);
 				return;
 			}
-			System.out.println(Arrays.toString(secret));
 	        sensor.setSecret(secret);
     	}
         
@@ -231,7 +230,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         	return;
         }
         
-        JenaRdfModelWithLifetime modelWithLifetime = new JenaRdfModelWithLifetime(model, data.getLifetime());
+        ResourceStatus resourceStatus = new ResourceStatus(sensorPseudonym, model, data.getLifetime());
         
         // finds the corresponding web service for the sensor URI
         CoapSensorWebservice webservice = findWebservice(data.getSensorUriPath());
@@ -241,7 +240,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
             return;
         }
         
-        webservice.updateRdfSensorData(modelWithLifetime);
+        webservice.updateResourceStatus(resourceStatus);
         
         StringWriter stringWriter = new StringWriter();
         model.write(stringWriter, "N3");

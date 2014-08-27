@@ -32,7 +32,7 @@ import priviot.utils.data.EncryptionParameters;
 import priviot.utils.data.transfer.EncryptedSensorDataPackage;
 import priviot.utils.data.transfer.PrivIoTContentFormat;
 import priviot.utils.encryption.EncryptionException;
-import priviot.coapwebserver.data.JenaRdfModelWithLifetime;
+import priviot.coapwebserver.data.ResourceStatus;
 import priviot.coapwebserver.data.KeyDatabase;
 import priviot.coapwebserver.data.KeyDatabaseEntry;
 
@@ -42,7 +42,7 @@ import priviot.coapwebserver.data.KeyDatabaseEntry;
  * 
  * The COAPWebservice is observable for clients.
  */
-public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWithLifetime> {
+public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> {
 	public static long DEFAULT_CONTENT_FORMAT = PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML;
 	
 	private Logger log = Logger.getLogger(this.getClass().getName());
@@ -60,7 +60,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
      * @param path Path where the Webservice is registered
      * @param updateInterval Interval of resource update in seconds
      */
-    public CoapSensorWebservice(String path, int updateInterval, 
+    public CoapSensorWebservice(String path, int updateInterval,
                                 EncryptionParameters encryptionParameters, KeyDatabase keyDatabase) {
     	super(path, null);
     	
@@ -90,9 +90,9 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
 	    );
     }
     
-    public void updateRdfSensorData(JenaRdfModelWithLifetime rdfSensorData) {
+    public void updateResourceStatus(ResourceStatus newResourceStatus) {
     	log.debug("update sensor data for sensor " + getPath());
-    	setResourceStatus(rdfSensorData, updateIntervalMillis / 1000);
+    	setResourceStatus(newResourceStatus, updateIntervalMillis / 1000);
     }
     
     private void addContentFormat(long contentFormat, String template){
@@ -122,7 +122,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
 
 
     @Override
-    public void updateEtag(JenaRdfModelWithLifetime resourceStatus) {
+    public void updateEtag(ResourceStatus resourceStatus) {
         //nothing to do here...
     }
 
@@ -186,7 +186,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
         	log.debug("Reply with CONTENT 205");
             coapResponse = new CoapResponse(coapRequest.getMessageTypeName(), MessageCode.Name.CONTENT_205);
             coapResponse.setContent(resourceStatus.getContent(), contentFormat);
-
+            
             coapResponse.setEtag(resourceStatus.getEtag());
             coapResponse.setMaxAge(resourceStatus.getMaxAge());
 
@@ -236,6 +236,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
             contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_TURTLE) {
             
             
+        	String sensorPseudonymUri = getResourceStatus().getSensorUri();
             Model rdfModel = getResourceStatus().getRdfModel();
             int lifetime = getResourceStatus().getLifetime();
             
@@ -283,6 +284,7 @@ public class CoapSensorWebservice  extends ObservableWebservice<JenaRdfModelWith
                 encryptedSensorDataPackage = 
                         EncryptionProcessor.createEncryptedDataPackage(rdfModelStr, 
                                                                lifetime,
+                                                               sensorPseudonymUri,
                                                                encryptionParameters.getSymmetricEncryptionAlgorithm(),
                                                                encryptionParameters.getSymmetricEncryptionKeySize(),
                                                                encryptionParameters.getAsymmetricEncryptionAlgorithm(),
