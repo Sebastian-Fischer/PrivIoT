@@ -45,6 +45,10 @@ public class Controller {
 	private Thread worker;
 	
 	private Channel connector;
+	
+	private ClientBootstrap bootstrap;
+	
+	private InetSocketAddress address;
 
 	/**
 	 * Constructor.
@@ -62,11 +66,13 @@ public class Controller {
 		this.sspHttpHost = sspHttpHost;
 		this.sspHttpRequestPath = sspHttpRequestPath;
 		
+		log.info("Observing the sensor " + sensorUri);
+		
 		// setup HTTP client
 		ChannelFactory factory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(),
                                                                    Executors.newCachedThreadPool());
   
-        ClientBootstrap bootstrap = new ClientBootstrap(factory);
+        bootstrap = new ClientBootstrap(factory);
   
         bootstrap.setPipelineFactory(new HttpChannelPipelineFactory());
           
@@ -75,7 +81,7 @@ public class Controller {
 	    
 	    log.info("Connect HTTP client to " + sspHttpHost + ", port " + sspHttpPort);
 	    
-	    InetSocketAddress address = new InetSocketAddress(sspHttpHost, sspHttpPort);
+	    address = new InetSocketAddress(sspHttpHost, sspHttpPort);
 	    log.info("address: " + address.getAddress());
 	    if (address.isUnresolved()) {
 	    	log.info("unresolved");
@@ -84,34 +90,17 @@ public class Controller {
 	    	log.info("resolved");
 	    }
 	    
-	    ChannelFuture future = bootstrap.connect(address);
 	    
-	    if (!future.awaitUninterruptibly().isSuccess()) {
-	    	log.error("Failed to connect to server");
-	    	return;
-	    }
-	    
-	    connector = (NioSocketChannel)future.getChannel();
-	    
-	    if (connector.isConnected()) {
-	    	log.info("Connected to server");
-	    }
 	}
 	
 	/**
 	 * Let the Controller start.
 	 */
-	public boolean start() {
-		if (!connector.isConnected()) {
-			return false;
-		}
-		
+	public boolean start() {		
 		worker = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				// minimum time in milliseconds until previous and next update time
-				/* 
-				 */
 				long minTimeDifference = 10000;
 				
 				log.debug("sensor update interval is " + sensorUpdateInterval + " seconds");
@@ -122,7 +111,19 @@ public class Controller {
 				
 				while (true) {
 					try {
+						if (connector == null) {
+							if (!connectToServer()) {
+								return;
+							}
+						} else if(!connector.isConnected()) {
+							log.debug("Reconnect to server");
+							if (!connectToServer()) {
+								return;
+							}
+						}
+					    
 						requestStatus();
+						
 					} catch (ErrorDataEncoderException e1) {
 						// TODO Auto-generated catch block
 						e1.printStackTrace();
@@ -144,6 +145,31 @@ public class Controller {
 	}
 	
 	/**
+	 * Connects to the server and waits for the connection.
+	 * @return false on failure.
+	 */
+	private boolean connectToServer() {
+		ChannelFuture future = bootstrap.connect(address);
+	    
+	    if (!future.awaitUninterruptibly().isSuccess()) {
+	    	log.error("Failed to connect to server");
+	    	return false;
+	    }
+	    
+	    connector = (NioSocketChannel)future.getChannel();
+	    
+	    if (connector.isConnected()) {
+	    	log.info("Connected to server");
+	    }
+	    else {
+	    	log.error("Not connected to server");
+	    	return false;
+	    }
+	    
+	    return true;
+	}
+	
+	/**
 	 * Requests the status of the specified sensor from the Smart Service Proxy.
 	 * @throws ErrorDataEncoderException 
 	 */
@@ -161,20 +187,14 @@ public class Controller {
 		
 		log.info("Send HTTP request for sensor " + pseudonym);
 		
-		DefaultHttpDataFactory factory = new DefaultHttpDataFactory();
-		
 		// send http request to ssp
 		HttpRequest request = new DefaultHttpRequest(
                 HttpVersion.HTTP_1_1, HttpMethod.POST, sspHttpRequestPath);
 		
-		
-		// First try: Build a request similar to that one sent by the website /services/sparql-endpoint
-		// this causes a null pointer exception on the server because he can't find body http data "query" in SparqlEndpoint
-		
         request.headers().set(HttpHeaders.Names.HOST, sspHttpHost);
         request.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
         request.headers().set(HttpHeaders.Names.CONTENT_TYPE, "multipart/form-data; boundary=" + BOUNDARY);
-        request.headers().set(HttpHeaders.Names.ACCEPT, "XML");
+        request.headers().set(HttpHeaders.Names.ACCEPT, "application/sparql-results+xml");
         
         String contentStr = "SELECT ?point WHERE {\r\n"
 				          + "<" + pseudonym + "> <http://example.org/itm-geo-test#hasPosition> ?position .\r\n"
@@ -187,21 +207,7 @@ public class Controller {
         
         request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, channelBuffer.readableBytes());
         
-        log.debug("send message to " + sspHttpHost + "/" + sspHttpRequestPath + ":\n" + contentStr);
-        
-		
-        log.debug("send message to " + sspHttpHost + "/" + sspHttpRequestPath);
-        log.debug("version: " + request.getProtocolVersion());
-        log.debug("method: " + request.getMethod());
-        
-        log.debug("headers:");
-        for (Entry<String, String> entry : request.headers().entries()) {
-        	log.debug(entry.getKey() + ": " + entry.getValue());
-        }
-        
-        byte[] payload = new byte[request.getContent().readableBytes()];
-        request.getContent().getBytes(0, payload);
-		log.debug("content:\n" + new String(payload));
+        log.debug("send sparql message to " + sspHttpHost + "/" + sspHttpRequestPath);
         
     	connector.write(request);
 	}
@@ -237,11 +243,11 @@ public class Controller {
 		}
 		else if (modulo > sensorUpdateIntervalMilli - minTimeDifference) {
 			sleepTime = sensorUpdateIntervalMilli + minTimeDifference - modulo;
-			log.info((sensorUpdateIntervalMilli - modulo) + " before nextt update time. Sleep " + sleepTime + " milliseconds");
+			log.info((sensorUpdateIntervalMilli - modulo) + " before next update time. Sleep " + sleepTime + " milliseconds");
 		}
 		if (sleepTime > 0) {
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(sleepTime);
 			} catch (InterruptedException e) {
 				log.error("Worker thread interrupted", e);
 				return;
