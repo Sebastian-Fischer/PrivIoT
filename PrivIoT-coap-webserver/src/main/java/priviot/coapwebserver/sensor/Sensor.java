@@ -1,6 +1,7 @@
 package priviot.coapwebserver.sensor;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -100,10 +101,37 @@ public abstract class Sensor {
 	/**
 	 * Starts the sensor.
 	 * From this moment on it will publish sensor values all updateFrequency seconds.
+	 * Calls start(updateFrequency)
 	 */
 	public void start() {
+		start(updateFrequency);
+	}
+	
+	/**
+	 * Starts the sensor.
+	 * From this moment on it will publish sensor values all updateFrequency seconds.
+	 * The sensor will first sleep until actual time is minimum minTimeDifference after the last update time.
+	 * 
+	 * @param minTimeDifference  Maximum time difference in seconds after the last update time. 
+	 *                           If not needed set to updateFrequency.
+	 */
+	public void start(long maxTimeDifference) {
 	    if (scheduledExecutorService == null) {
 	        log.error("scheduledExecutorService not initialized. Can't start Sensor");
+	    }
+	    
+	    // find a good start point
+	    long sleepTime = 0;
+	    long updateFrequencyMilli = updateFrequency * 1000;
+	    long maxTimeDifferenceMilli = maxTimeDifference * 1000;
+	    long modulo = (new Date()).getTime() % (updateFrequencyMilli);
+	    
+	    if (modulo > maxTimeDifferenceMilli) {
+			sleepTime = (updateFrequencyMilli - modulo) + 1000; // 1000 for tolerance
+			log.debug(modulo + " seconds after last update time. Sensor starts after " + sleepTime + " milliseconds");
+		}
+	    else {
+	    	log.debug(modulo + " seconds after last update time.");
 	    }
 	    
 	    scheduledExecutorService.scheduleAtFixedRate(new Runnable(){
@@ -117,7 +145,7 @@ public abstract class Sensor {
                     log.error("Exception while updating sensor value", e);
                 }
             }
-        },0, updateFrequency, TimeUnit.SECONDS);
+        },sleepTime, updateFrequencyMilli, TimeUnit.MILLISECONDS);
     }
 	
 	/**

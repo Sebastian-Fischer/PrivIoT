@@ -157,7 +157,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         // create and initialize a GeographicSensor and it's Webservice
         GeographicSensor sensor2 = new GeographicSensor(SENSOR2_URI_PATH, SENSOR2_UPDATE_FREQUENCY, executorService);
         initializeSensorAndCreateWebservice(sensor2);
-        sensor2.start();
+        sensor2.start(5);
     }
     
     private void initializeSensorAndCreateWebservice(Sensor sensor) {
