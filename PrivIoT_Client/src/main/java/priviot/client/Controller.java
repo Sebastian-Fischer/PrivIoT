@@ -2,6 +2,7 @@ package priviot.client;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.Map.Entry;
 import java.util.concurrent.Executors;
 
@@ -108,6 +109,17 @@ public class Controller {
 		worker = new Thread(new Runnable() {
 			@Override
 			public void run() {
+				// minimum time in milliseconds until previous and next update time
+				/* 
+				 */
+				long minTimeDifference = 10000;
+				
+				log.debug("sensor update interval is " + sensorUpdateInterval + " seconds");
+				
+				sleepUntilInTimeWindow(sensorUpdateInterval * 1000, minTimeDifference);
+				
+				log.info("Start requesting status");
+				
 				while (true) {
 					try {
 						requestStatus();
@@ -161,49 +173,23 @@ public class Controller {
 		
         request.headers().set(HttpHeaders.Names.HOST, sspHttpHost);
         request.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-        //request.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=UTF-8");
         request.headers().set(HttpHeaders.Names.CONTENT_TYPE, "multipart/form-data; boundary=" + BOUNDARY);
-        request.headers().set(HttpHeaders.Names.ACCEPT, "application/rdf+xml");
+        request.headers().set(HttpHeaders.Names.ACCEPT, "XML");
         
-        String contentStr = BOUNDARY + "\n"
-		          + "Content-Disposition: form-data; name=\"query\"\n\n"
-		          + "SELECT ?point WHERE {\n"
-		          + "<" + pseudonym + ">"
-		          + " <http://example.org/itm-geo-test#hasPosition> ?position .\n"
-	              + "?position <http://www.opengis.net/ont/geosparql#asWKT> ?point .\n"
-                + "}"
-                + "\n" + BOUNDARY + "--";
-        ChannelBuffer channelBuffer = ChannelBuffers.copiedBuffer(contentStr, StandardCharsets.UTF_8);
+        String contentStr = "SELECT ?point WHERE {\r\n"
+				          + "<" + pseudonym + "> <http://example.org/itm-geo-test#hasPosition> ?position .\r\n"
+			              + "?position <http://www.opengis.net/ont/geosparql#asWKT> ?point .\r\n"
+		                  + "}";
+        String multipartContentStr = createMultipartContent(contentStr, BOUNDARY);
+        
+        ChannelBuffer channelBuffer = ChannelBuffers.copiedBuffer(multipartContentStr, StandardCharsets.UTF_8);
         request.setContent(channelBuffer);
+        
         request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, channelBuffer.readableBytes());
+        
         log.debug("send message to " + sspHttpHost + "/" + sspHttpRequestPath + ":\n" + contentStr);
         
 		
-		// Second try: Build a request with HttpPostRequestEncoder
-		// This causes a java.lang.IllegalArgumentException: unsupported message type: class org.jboss.netty.handler.codec.http.multipart.HttpPostRequestEncoder
-		// in SocketSendBufferPool.acquire()
-		/*
-		String contentStr = "SELECT ?point WHERE {\n"
-				          + "<" + pseudonym + ">"
-				          + " <http://example.org/itm-geo-test#hasPosition> ?position .\n"
-			              + "?position <http://www.opengis.net/ont/geosparql#asWKT> ?point .\n"
-		                  + "}";
-		                  
-		HttpPostRequestEncoder bodyRequestEncoder =
-				new HttpPostRequestEncoder(factory, request, true); // true => multipart
-		
-		request.headers().set(HttpHeaders.Names.HOST, sspHttpHost);
-        request.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-        request.headers().set(HttpHeaders.Names.ACCEPT, "XML");
-        
-        // add Form attribute
-        bodyRequestEncoder.addBodyAttribute("getform", "POST");
-        bodyRequestEncoder.addBodyAttribute("Content-Disposition", "form-data; name=\"query\"");
-        bodyRequestEncoder.addBodyAttribute("query", contentStr);
-        
-        bodyRequestEncoder.finalizeRequest();
-        */
-        
         log.debug("send message to " + sspHttpHost + "/" + sspHttpRequestPath);
         log.debug("version: " + request.getProtocolVersion());
         log.debug("method: " + request.getMethod());
@@ -218,8 +204,48 @@ public class Controller {
 		log.debug("content:\n" + new String(payload));
         
     	connector.write(request);
-    	
-    	// for seconds try
-    	//connector.write(bodyRequestEncoder);
+	}
+	
+	private String createMultipartContent(String content, String boundary) {
+		return "--" + boundary + "\r\n" +
+			   "Content-Disposition: form-data; name=\"query\"\r\n\r\n" +
+	           content + 
+	           "\r\n--" + boundary + "--\r\n";
+	}
+	
+	/**
+	 * Ever sensorUpdateInterval the pseudonym of the requested data changes.
+	 * That means, within this time difference the CoAP-Webserver has to create and 
+	 * send the new sensor data to the SSP,
+	 * the SSP has to save the data and the Client has to ask for the data.
+	 * This method sleeps until the the actual time is in interval 
+	 * (sensorUpdateIntervalMilli + minTimeDifference, sensorUpdateIntervalMilli - minTimeDifference).
+	 * @param sensorUpdateIntervalMilli  The time interval in milliseconds,
+	 *                                   in which new sensor data is published and the pseudonym changes.
+	 * @param minTimeDifference          The minimum time in milliseconds until previous and next update time.
+	 */
+	private void sleepUntilInTimeWindow(long sensorUpdateIntervalMilli, long minTimeDifference) {
+		// find good start point
+		long modulo = (new Date()).getTime() % (sensorUpdateIntervalMilli);
+		
+		// sleep until we are 0 to maxTimeDifference milliseconds after the actual sensor update time
+		// and maxTimeDifference before the next sensor update time
+		long sleepTime = 0;
+		if (modulo < minTimeDifference) {
+			sleepTime = minTimeDifference - modulo;
+			log.info(modulo + " seconds after last update time. Sleep " + sleepTime + " milliseconds");
+		}
+		else if (modulo > sensorUpdateIntervalMilli - minTimeDifference) {
+			sleepTime = sensorUpdateIntervalMilli + minTimeDifference - modulo;
+			log.info((sensorUpdateIntervalMilli - modulo) + " before nextt update time. Sleep " + sleepTime + " milliseconds");
+		}
+		if (sleepTime > 0) {
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				log.error("Worker thread interrupted", e);
+				return;
+			}
+		}
 	}
 }
