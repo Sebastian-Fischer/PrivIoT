@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema targetNamespace="http://itm.uniluebeck.de/priviot/utils/data/gen"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+           jaxb:version="2.1"
+           xmlns = "http://itm.uniluebeck.de/priviot/utils/data/gen"
+           elementFormDefault="qualified">
+
+  <xs:element name="privacyData">
+    <xs:annotation>
+      <xs:appinfo>
+        <jaxb:class name="PrivacyDataPackage">
+          <jaxb:javadoc>
+Represents a privacy data package which can be sent to a smart service proxy.
+The package contains rdf sensor data about a sensor, specified by sensorUri.
+The content is encrypted symmetrically while the key used for encryption is encrypted asymmetrically with the public key of the recipient.
+The package also contains the metadata of the symmetric encryption.
+All metadata of the asymmetric encrpytion is set by the certificate of the recipient. 
+The private key of the recipient is needed to decrypt the content.
+          </jaxb:javadoc>
+        </jaxb:class>
+      </xs:appinfo>
+    </xs:annotation>
+
+    <xs:complexType>
+      <xs:all>
+
+        <!-- Meta information about the content -->
+
+        <xs:element name="uri" type="xs:anyURI">
+          <xs:annotation>
+            <xs:appinfo>
+              <jaxb:property name="sensorUri">
+                <jaxb:javadoc>URI of the sensor. Can be used as graph name by the recipient.</jaxb:javadoc>
+              </jaxb:property>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+        
+
+
+        <!-- Meta information about the encryption -->
+
+        <xs:element name="algorithm" type="xs:string">
+          <xs:annotation>
+            <xs:appinfo>
+              <jaxb:property name="encryptionAlgorithm">
+                <jaxb:javadoc>Specifies the algorithm, used for symmetric encryption.</jaxb:javadoc>
+              </jaxb:property>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+
+        <xs:element name="key" type="xs:string">
+          <xs:annotation>
+            <xs:appinfo>
+              <jaxb:property name="encryptedSymmetricKey">
+                <jaxb:javadoc>The key used for symmetric encryption of the content. It is encrpyted with the public key of the recipient.</jaxb:javadoc>
+              </jaxb:property>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+
+        <xs:element name="iv" type="xs:string">
+          <xs:annotation>
+            <xs:appinfo>
+              <jaxb:property name="initializationVector">
+                <jaxb:javadoc>The initialization vector used for symmetric encryption of the content, if needed by the encryption algorithm. Empty string if not needed.</jaxb:javadoc>
+              </jaxb:property>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+
+
+        <!-- the content -->
+
+        <xs:element name="content" type="xs:string">
+          <xs:annotation>
+            <xs:appinfo>
+              <jaxb:property name="encryptedContent">
+                <jaxb:javadoc>The content of the package, symmetrically encrypted with encryptionAlgorithm, encryptedSymmetricKey and initializationVector.</jaxb:javadoc>
+              </jaxb:property>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+
+      </xs:all>
+    </xs:complexType>
+
+  </xs:element>
+
+</xs:schema>
