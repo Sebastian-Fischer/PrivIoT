@@ -36,6 +36,19 @@
 		<artifactId>commons-codec</artifactId>
 		<version>1.9</version>
 	</dependency>
+	
+    <dependency>
+      <groupId>net.java.dev.stax-utils</groupId>
+      <artifactId>stax-utils</artifactId>
+      <version>20070216</version>
+      <exclusions>
+        <exclusion>
+          <!-- Not required to use IndentingXMLEventWriter and not on Maven Central -->
+          <groupId>com.bea.xml</groupId>
+          <artifactId>jsr173-ri</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
   
   <build>

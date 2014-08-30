@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<xs:schema targetNamespace="http://itm.uniluebeck.de/priviot/utils/data/gen"
+<xs:schema targetNamespace="http://itm.uniluebeck.de/xsd"
            xmlns:xs="http://www.w3.org/2001/XMLSchema"
            xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
            jaxb:version="2.1"
-           xmlns = "http://itm.uniluebeck.de/priviot/utils/data/gen"
+           xmlns = "http://itm.uniluebeck.de/xsd"
            elementFormDefault="qualified">
+
+  <xs:annotation>
+    <xs:appinfo>
+      <jaxb:schemaBindings>
+        <jaxb:package name="de.uniluebeck.itm.priviot.utils.data.generated"/>
+      </jaxb:schemaBindings>
+    </xs:appinfo>
+  </xs:annotation>
 
   <xs:element name="privacyData">
     <xs:annotation>
@@ -44,8 +52,8 @@ The private key of the recipient is needed to decrypt the content.
         <xs:element name="algorithm" type="xs:string">
           <xs:annotation>
             <xs:appinfo>
-              <jaxb:property name="encryptionAlgorithm">
-                <jaxb:javadoc>Specifies the algorithm, used for symmetric encryption.</jaxb:javadoc>
+              <jaxb:property name="symmetricEncryptionAlgorithmCode">
+                <jaxb:javadoc>Specifies the algorithm and bit strength, used for symmetric encryption. For example AES-128.</jaxb:javadoc>
               </jaxb:property>
             </xs:appinfo>
           </xs:annotation>
@@ -55,7 +63,7 @@ The private key of the recipient is needed to decrypt the content.
           <xs:annotation>
             <xs:appinfo>
               <jaxb:property name="encryptedSymmetricKey">
-                <jaxb:javadoc>The key used for symmetric encryption of the content. It is encrpyted with the public key of the recipient.</jaxb:javadoc>
+                <jaxb:javadoc>The key used for symmetric encryption of the content. Base64 encoded. It is encrpyted with the public key of the recipient.</jaxb:javadoc>
               </jaxb:property>
             </xs:appinfo>
           </xs:annotation>
@@ -65,7 +73,7 @@ The private key of the recipient is needed to decrypt the content.
           <xs:annotation>
             <xs:appinfo>
               <jaxb:property name="initializationVector">
-                <jaxb:javadoc>The initialization vector used for symmetric encryption of the content, if needed by the encryption algorithm. Empty string if not needed.</jaxb:javadoc>
+                <jaxb:javadoc>The initialization vector used for symmetric encryption of the content, if needed by the encryption algorithm.  Base64 encoded. Empty string if not needed.</jaxb:javadoc>
               </jaxb:property>
             </xs:appinfo>
           </xs:annotation>
@@ -78,7 +86,7 @@ The private key of the recipient is needed to decrypt the content.
           <xs:annotation>
             <xs:appinfo>
               <jaxb:property name="encryptedContent">
-                <jaxb:javadoc>The content of the package, symmetrically encrypted with encryptionAlgorithm, encryptedSymmetricKey and initializationVector.</jaxb:javadoc>
+                <jaxb:javadoc>The content of the package, symmetrically encrypted with encryptionAlgorithm, encryptedSymmetricKey and initializationVector. Base64 encoded.</jaxb:javadoc>
               </jaxb:property>
             </xs:appinfo>
           </xs:annotation>

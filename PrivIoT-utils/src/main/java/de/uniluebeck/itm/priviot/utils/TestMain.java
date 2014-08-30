@@ -1,23 +1,49 @@
 package de.uniluebeck.itm.priviot.utils;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
+import javax.xml.bind.JAXBException;
+import javax.xml.stream.XMLStreamException;
 
+import org.apache.commons.codec.binary.Base64;
 import org.w3c.dom.DOMException;
 import org.xml.sax.SAXException;
 
 import de.uniluebeck.itm.priviot.utils.data.DataPackageParsingException;
-import de.uniluebeck.itm.priviot.utils.data.transfer.EncryptedSensorDataPackage;
+import de.uniluebeck.itm.priviot.utils.data.EncryptionAlgorithmCodes;
+import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
+import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageMarshaller;
+import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageUnmarshaller;
+import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
+import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionHelper;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.AsymmetricCipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.CiphererFactory;
@@ -35,7 +61,7 @@ public class TestMain {
         System.out.println("== Test PrivIoT_Utils ==\n");
         
         System.out.println("-- Test serialization of EncryptedSensorDataPackage");
-        if (testEncryptedSensorDataPackage()) {
+        if (testPrivacyDataPackage()) {
             System.out.println("=> Serialization of EncryptedSensorDataPackage works! :)");
         }
         else {
@@ -51,18 +77,7 @@ public class TestMain {
         else {
             System.out.println("=> AES encryption doesn't work! :(");
             return;
-        }
-        
-        System.out.println();
-        System.out.println("-- Test EncryptedSensorDataPackage with AES encrypted content");
-        if (testAESEncryptionWithEncryptedSensorDataPackage()) {
-            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content works! :)");
-        }
-        else {
-            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content doesn't work! :(");
-            return;
-        }
-        
+        }        
         
         System.out.println();
         System.out.println("-- Test RSA encryption");
@@ -88,16 +103,6 @@ public class TestMain {
         }
         
         System.out.println();
-        System.out.println("-- Test EncryptedSensorDataPackage with AES encrypted content and RSA encrypted key");
-        if (testRSAWithAESWithEncryptedSensordataPackage()) {
-            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content and RSA encrypted key works! :)");
-        }
-        else {
-            System.out.println("=> EncryptedSensorDataPackage with AES encrypted content and RSA encrypted key doesn't work! :(");
-            return;
-        }
-        
-        System.out.println();
         System.out.println("-- Test HMac256PseudonymGenerator");
         if (testHmac256PseudonymGenerator()) {
         	System.out.println("=> HMac256PseudonymGenerator works! :)");
@@ -116,46 +121,51 @@ public class TestMain {
         	System.out.println("=> PseudonymizationProcessor doesn't work! :(");
         	return;
         }
+        
+        System.out.println();
+        System.out.println("-- Test EncryptionProcessor");
+        if (testEncryptionProcessor()) {
+        	System.out.println("=> EncryptionProcessor works! :)");
+        }
+        else {
+        	System.out.println("=> EncryptionProcessor doesn't work! :(");
+        	return;
+        }
     }
     
-    private static boolean testEncryptedSensorDataPackage() {
-        String asyMethod = "rsa";
-        int asyKeySize = 1024;
-        String symMethod = "aes";
-        int symKeySize = 128;
-        int lifetime = 5;
+    private static boolean testPrivacyDataPackage() {
+    	String sensorUri = "www.pseudonym.com/xyz";
+    	String encryptionAlgorithmCode = EncryptionAlgorithmCodes.AES_256_CBC;
         byte[] content = "blabla".getBytes();
         byte[] iv = {-43, 120, 2};
         byte[] key = "keykey".getBytes();
         
-        EncryptedSensorDataPackage dataPackage = new EncryptedSensorDataPackage();
-        dataPackage.setAsymmetricEncryptionMethod(asyMethod);
-        dataPackage.setAsymmetricEncryptionBitStrength(asyKeySize);
-        dataPackage.setSymmetricEncryptionMethod(symMethod);
-        dataPackage.setSymmetricEncryptionBitStrength(symKeySize);
-        dataPackage.setContentLifetime(lifetime);
-        dataPackage.setEncryptedContent(content);
-        dataPackage.setEncryptedInitializationVector(iv);
-        dataPackage.setEncryptedKey(key);
+        PrivacyDataPackage dataPackage = new PrivacyDataPackage();
+        dataPackage.setSensorUri(sensorUri);
+        dataPackage.setSymmetricEncryptionAlgorithmCode(encryptionAlgorithmCode);
+        dataPackage.setEncryptedContent(Base64.encodeBase64String(content));
+        dataPackage.setInitializationVector(Base64.encodeBase64String(iv));
+        dataPackage.setEncryptedSymmetricKey(Base64.encodeBase64String(key));
         
         printDataPackage(dataPackage);
         
-        String xml;
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         try {
-           xml = dataPackage.toXMLString(); 
+           PrivacyDataPackageMarshaller.marshal(dataPackage, outStream);
         }
-        catch (DOMException e) {
+        catch (JAXBException | XMLStreamException e) {
             e.printStackTrace();
             return false;
         }
         
         System.out.println("XML representation:");
-        System.out.println(xml);
+        System.out.println(outStream.toString());
         
-        EncryptedSensorDataPackage dataPackage2;
+        ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+        PrivacyDataPackage dataPackage2;
         try {
-            dataPackage2 = EncryptedSensorDataPackage.createInstanceFromXMLString(xml);
-        } catch (NumberFormatException | SAXException | DataPackageParsingException e) {
+            dataPackage2 = PrivacyDataPackageUnmarshaller.unmarshal(inStream);
+        } catch (JAXBException | XMLStreamException e) {
             e.printStackTrace();
             return false;
         }
@@ -166,28 +176,12 @@ public class TestMain {
         System.out.println("Parsed data package:");
         printDataPackage(dataPackage2);
         
-        if (dataPackage.getAsymmetricEncryptionMethod().equals(dataPackage2.getAsymmetricEncryptionMethod()) &&
-            dataPackage.getAsymmetricEncryptionBitStrength() == dataPackage2.getAsymmetricEncryptionBitStrength() &&
-            dataPackage.getSymmetricEncryptionMethod().equals(dataPackage2.getSymmetricEncryptionMethod()) &&
-            dataPackage.getSymmetricEncryptionBitStrength() == dataPackage2.getSymmetricEncryptionBitStrength() &&
-            dataPackage.getContentLifetime() == dataPackage2.getContentLifetime() &&
-            Arrays.equals(dataPackage.getEncryptedContent(), dataPackage2.getEncryptedContent()) &&
-            Arrays.equals(dataPackage.getEncryptedInitializationVector(), dataPackage2.getEncryptedInitializationVector()) &&
-            Arrays.equals(dataPackage.getEncryptedKey(), dataPackage2.getEncryptedKey())) {
-            
-                byte[] content2 = dataPackage2.getEncryptedContent();
-                byte[] iv2 = dataPackage2.getEncryptedInitializationVector();
-                byte[] key2 = dataPackage2.getEncryptedKey();
-                
-                if (Arrays.equals(content, content2) &&
-                    Arrays.equals(iv, iv2) &&
-                    Arrays.equals(key, key2)) {
-                    return true;
-                }
-                else {
-                    System.out.println("Error: Result is not equal to input");
-                    return false;
-                }
+        if (dataPackage.getSensorUri().equals(dataPackage2.getSensorUri()) &&
+            dataPackage.getSymmetricEncryptionAlgorithmCode().equals(dataPackage2.getSymmetricEncryptionAlgorithmCode()) &&
+            dataPackage.getEncryptedContent().equals(dataPackage2.getEncryptedContent()) &&
+            dataPackage.getInitializationVector().equals(dataPackage2.getInitializationVector()) &&
+            dataPackage.getEncryptedSymmetricKey().equals(dataPackage2.getEncryptedSymmetricKey())) {
+            return true;
         }
         else {
             System.out.println("Error: Packages are not equal");
@@ -282,129 +276,6 @@ public class TestMain {
         return Arrays.equals(plaintextIn, plaintextOut);
     }
     
-    private static boolean testAESEncryptionWithEncryptedSensorDataPackage() {        
-        SymmetricCipherer aesCipherer = createAESCipherer();
-        String message = "Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message";
-        byte[] plaintextIn = message.getBytes();
-        int keysize = 256;
-        
-        System.out.println("Message: '" + message + "'");
-        System.out.println("will be encrypted with " + AESCipherer.getAlgorithm() + " with keysize " + keysize);
-        
-        try {
-            aesCipherer.initialize(keysize);
-        } catch (InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during initialize: " + e.getMessage());
-        }
-        
-        aesCipherer.generateKey();
-        
-        
-        EncryptedSensorDataPackage dataPackage = new EncryptedSensorDataPackage();
-        dataPackage.setAsymmetricEncryptionMethod("");
-        dataPackage.setAsymmetricEncryptionBitStrength(0);
-        dataPackage.setSymmetricEncryptionMethod(aesCipherer.getUsedAlgorithm());
-        dataPackage.setSymmetricEncryptionBitStrength(keysize);
-        
-        
-        byte[] ciphertext;
-        byte[] keyBytes = aesCipherer.getKeyAsByteArray();
-        byte[] ivBytes = aesCipherer.getIvAsByteArray();
-        try {
-            ciphertext = aesCipherer.encrypt(plaintextIn);
-        } catch (InvalidKeyException | IllegalBlockSizeException
-                | BadPaddingException | ShortBufferException | InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during encrypt: " + e.getMessage());
-            return false;
-        }
-        
-        //System.out.println("ciphertext: " + Arrays.toString(ciphertext));
-        //System.out.println("iv: " + Arrays.toString(ivBytes));
-        //System.out.println("key: " + Arrays.toString(keyBytes));
-        
-        dataPackage.setEncryptedContent(ciphertext);
-        dataPackage.setEncryptedInitializationVector(ivBytes);
-        dataPackage.setEncryptedKey(keyBytes);
-        
-        //printDataPackage(dataPackage);
-        
-        String xml;
-        try {
-           xml = dataPackage.toXMLString(); 
-        }
-        catch (DOMException e) {
-            e.printStackTrace();
-            return false;
-        }
-        
-        System.out.println("XML representation:");
-        System.out.println(xml);
-        
-        
-        EncryptedSensorDataPackage dataPackage2;
-        try {
-            dataPackage2 = EncryptedSensorDataPackage.createInstanceFromXMLString(xml);
-        } catch (NumberFormatException | SAXException | DataPackageParsingException e) {
-            e.printStackTrace();
-            return false;
-        }
-        
-        //System.out.println("Parsed data package:");
-        //printDataPackage(dataPackage2);
-        
-        //System.out.println("ciphertext: " + Arrays.toString(dataPackage2.getEncryptedContent()));
-        //System.out.println("iv: " + Arrays.toString(dataPackage2.getEncryptedInitializationVector()));
-        //System.out.println("key: " + Arrays.toString(dataPackage2.getEncryptedKey()));
-        
-        
-        SymmetricCipherer aesCipherer2;
-        try {
-            aesCipherer2 = CiphererFactory.createSymmetricCipherer(dataPackage2.getSymmetricEncryptionMethod());
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            System.out.println("Exception during create symmetric cipherer: " + e.getMessage());
-            return false;
-        }
-        if (aesCipherer2 == null) {
-            System.out.println("No symmetric cipherer found for algorithm " + dataPackage2.getSymmetricEncryptionMethod());
-            return false;
-        }
-        try {
-            aesCipherer2.initialize(keysize);
-        } catch (InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during initialize: " + e.getMessage());
-            return false;
-        }
-        try {
-            aesCipherer2.setIvFromByteArray(dataPackage2.getEncryptedInitializationVector());
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            System.out.println("Exception during setIvFromByteArray: " + e.getMessage());
-            return false;
-        }
-        try {
-            aesCipherer2.setKeyFromByteArray(dataPackage2.getEncryptedKey());
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            System.out.println("Exception during setKeyFromByteArray: " + e.getMessage());
-            return false;
-        }
-        
-        byte[] ciphertext2 = dataPackage2.getEncryptedContent();
-        
-        System.out.println("will be decrypted with: " + aesCipherer2.getUsedAlgorithm() + " with keysize: " + aesCipherer2.getKeySize());
-        
-        byte[] plaintextOut;
-        try {
-            plaintextOut = aesCipherer2.decrypt(ciphertext2);
-        } catch (InvalidKeyException | IllegalBlockSizeException
-                | BadPaddingException | InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during decrypt: " + e.getMessage());
-            return false;
-        }
-        
-        System.out.println("Decrypted Message: '" + new String(plaintextOut) + "'");
-        
-        return (Arrays.equals(plaintextOut, plaintextIn));
-    }
-    
     private static boolean testRSAEncryption() {
         String plaintextInStr = "rsamessage rsamessage rsamessage rsamessage rsamessage rsamessage";
         int keysize = 1024;
@@ -492,185 +363,6 @@ public class TestMain {
         System.out.println("          ('" + new String(plaintextOut) + "')");
         
         return Arrays.equals(plaintextIn, plaintextOut);
-    }
-    
-    private static boolean testRSAWithAESWithEncryptedSensordataPackage() {
-        SymmetricCipherer aesCipherer = createAESCipherer();
-        AsymmetricCipherer rsaCipherer = createRSACipherer();
-        AsymmetricCipherer rsaCipherer2 = createRSACipherer(); // cipherer of recipient
-        String message = "Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message Message";
-        byte[] plaintextIn = message.getBytes();
-        int keysize = 256;
-        int rsaKeysize = 1024;
-        
-        try {
-            rsaCipherer2.initialize(rsaKeysize);
-        } catch (InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during initialize of rsa cipherer: " + e.getMessage());
-            return false;
-        }
-        
-        rsaCipherer2.generateKey();
-        
-        byte[] rsaPublicKey = rsaCipherer2.getPublicKeyAsByteArray();
-        
-        try {
-            rsaCipherer.initialize(rsaKeysize);
-        } catch (InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during initialize of rsa cipherer: " + e.getMessage());
-        }
-        
-        System.out.println("RSA public key of recipient: " + Arrays.toString(rsaPublicKey));
-        
-        try {
-            rsaCipherer.setPublicKeyFromByteArray(rsaPublicKey);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            System.out.println("Exception during set public key at sender: " + e.getMessage());
-        }
-        
-        System.out.println("RSA public key set at sender");
-        
-        System.out.println("Message: '" + message + "'");
-        System.out.println("will be encrypted with " + aesCipherer.getUsedAlgorithm() + " with keysize " + keysize);
-        
-        try {
-            aesCipherer.initialize(keysize);
-        } catch (InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during initialize: " + e.getMessage());
-        }
-        
-        aesCipherer.generateKey();
-
-        byte[] key = aesCipherer.getKeyAsByteArray();
-        
-        System.out.println("Key: '" + Arrays.toString(key) + "'");
-        System.out.println("will be encrypted with " + rsaCipherer.getUsedAlgorithm() + " with keysize " + rsaKeysize);
-        
-        byte[] encryptedKey = new byte[0];
-        try {
-            encryptedKey = rsaCipherer.encrypt(key);
-        } catch (InvalidKeyException | IllegalBlockSizeException
-                | BadPaddingException | ShortBufferException
-                | InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during encryption of key: " + e.getMessage());
-            return false;
-        }
-        
-        EncryptedSensorDataPackage dataPackage = new EncryptedSensorDataPackage();
-        dataPackage.setAsymmetricEncryptionMethod(rsaCipherer.getUsedAlgorithm());
-        dataPackage.setAsymmetricEncryptionBitStrength(rsaKeysize);
-        dataPackage.setSymmetricEncryptionMethod(aesCipherer.getUsedAlgorithm());
-        dataPackage.setSymmetricEncryptionBitStrength(keysize);
-        
-        
-        byte[] ivBytes = aesCipherer.getIvAsByteArray();
-        byte[] ciphertext;
-        try {
-            ciphertext = aesCipherer.encrypt(plaintextIn);
-        } catch (InvalidKeyException | IllegalBlockSizeException
-                | BadPaddingException | ShortBufferException | InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during encrypt: " + e.getMessage());
-            return false;
-        }
-        
-        dataPackage.setEncryptedContent(ciphertext);
-        dataPackage.setEncryptedInitializationVector(ivBytes);
-        dataPackage.setEncryptedKey(encryptedKey);
-        
-        //printDataPackage(dataPackage);
-        
-        String xml;
-        try {
-           xml = dataPackage.toXMLString(); 
-        }
-        catch (DOMException e) {
-            e.printStackTrace();
-            return false;
-        }
-        
-        System.out.println("XML representation:");
-        System.out.println(xml);
-        
-        
-        EncryptedSensorDataPackage dataPackage2;
-        try {
-            dataPackage2 = EncryptedSensorDataPackage.createInstanceFromXMLString(xml);
-        } catch (NumberFormatException | SAXException | DataPackageParsingException e) {
-            e.printStackTrace();
-            return false;
-        }
-        
-        //System.out.println("Parsed data package:");
-        //printDataPackage(dataPackage2);
-        
-        if (! rsaCipherer2.getUsedAlgorithm().equals(dataPackage2.getAsymmetricEncryptionMethod())) {
-            System.out.println("asymmetric encryption method not supported");
-            return false;
-        }
-        if (rsaCipherer2.getKeySize() != dataPackage2.getAsymmetricEncryptionBitStrength()) {
-            System.out.println("asymmetric key size does not match asymmetric key pair of recipient");
-            return false;
-        }
-        byte[] decryptedKey = new byte[0];
-        try {
-            decryptedKey = rsaCipherer2.decrypt(dataPackage2.getEncryptedKey());
-        } catch (InvalidKeyException | IllegalBlockSizeException
-                | BadPaddingException | InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during decryption of key: " + e.getMessage());
-            return false;
-        }
-        System.out.println("Decrypted Key to: " + Arrays.toString(decryptedKey));
-        
-        SymmetricCipherer aesCipherer2;
-        try {
-            aesCipherer2 = CiphererFactory.createSymmetricCipherer(dataPackage2.getSymmetricEncryptionMethod());
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            System.out.println("Exception during create symmetric cipherer: " + e.getMessage());
-            return false;
-        }
-        if (aesCipherer2 == null) {
-            System.out.println("No symmetric cipherer for algorithm: " + dataPackage2.getSymmetricEncryptionMethod());
-            return false;
-        }
-        try {
-            aesCipherer2.initialize(keysize);
-        } catch (InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during initialize of aes cipherer: " + e.getMessage());
-            return false;
-        }
-        if (! aesCipherer2.getUsedAlgorithm().equals(dataPackage2.getSymmetricEncryptionMethod())) {
-            System.out.println("symmetric encryption method not supported");
-            return false;
-        }
-        try {
-            aesCipherer2.setIvFromByteArray(dataPackage2.getEncryptedInitializationVector());
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            System.out.println("Exception during setIvFromByteArray: " + e.getMessage());
-            return false;
-        }
-        try {
-            aesCipherer2.setKeyFromByteArray(decryptedKey);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            System.out.println("Exception during setKeyFromByteArray: " + e.getMessage());
-            return false;
-        }
-        
-        byte[] ciphertext2 = dataPackage2.getEncryptedContent();
-        
-        System.out.println("will be decrypted with: " + aesCipherer2.getUsedAlgorithm() + " with keysize: " + aesCipherer2.getKeySize());
-        
-        byte[] plaintextOut;
-        try {
-            plaintextOut = aesCipherer2.decrypt(ciphertext2);
-        } catch (InvalidKeyException | IllegalBlockSizeException
-                | BadPaddingException | InvalidAlgorithmParameterException e) {
-            System.out.println("Exception during decrypt: " + e.getMessage());
-            return false;
-        }
-        
-        System.out.println("Decrypted Message: '" + new String(plaintextOut) + "'");
-        
-        return (Arrays.equals(plaintextOut, plaintextIn));
     }
     
     private static boolean testHmac256PseudonymGenerator() {
@@ -761,6 +453,158 @@ public class TestMain {
     	return (pseudonym1.equals(pseudonym2) && !pseudonym1.equals(pseudonym3));
     }
     
+    private static boolean testEncryptionProcessor() {
+    	String content = "plaintextplaintextplaintextplaintextplaintextplaintextplaintextplaintextplaintext";
+    	String sensorUri = "www.sensor.com/sensor1";
+    	String symmetricEncryptionAlgorithmCode = EncryptionAlgorithmCodes.AES_256_CBC;
+    	String certificatePathStr = "src/main/resources/test.cert";
+    	String privateKeyPathStr = "src/main/resources/test_private_key.der";
+    	
+    	// load certificate
+    	X509Certificate certificate;
+		try {
+			certificate = loadCertificateFromFile(certificatePathStr);
+		} catch (CertificateException | IOException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+		
+		System.out.println("loaded certificate from file");
+		
+		// get public key from certificate
+    	PublicKey publicKey = certificate.getPublicKey();
+    	
+    	// get encryption parameters from algorithm code and public key
+    	EncryptionParameters encryptionParameters;
+		try {
+			encryptionParameters = new EncryptionParameters(symmetricEncryptionAlgorithmCode, 
+					                                        publicKey);
+		} catch (EncryptionException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+		
+		System.out.println("Encrpytion parameters:");
+		System.out.println("  symmetric encryption algorithm: " + encryptionParameters.getAsymmetricEncryptionAlgorithm());
+		System.out.println("  symmetric encryption bit strength: " + encryptionParameters.getAsymmetricEncryptionBitStrength());
+		System.out.println("  asymmetric encryption algorithm: " + encryptionParameters.getSymmetricEncryptionAlgorithm());
+		System.out.println("  asymmetric encryption bit strength: " + encryptionParameters.getSymmetricEncryptionBitStrength());
+    	
+    	byte[] sensorSecret;
+    	try {
+    		sensorSecret = PseudonymizationProcessor.generateHmac256Secret();
+		} catch (PseudonymizationException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	String sensorUriPseudonym = "www.pseudonym.com/";
+    	try {
+    		sensorUriPseudonym += PseudonymizationProcessor.generateHmac256Pseudonym(sensorUri, 10, sensorSecret);
+		} catch (PseudonymizationException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	System.out.println("generated sensor URI pseudonym: " + sensorUriPseudonym);
+    	
+    	System.out.println("generate PrivacyDataPackage with content: " + content);
+    	
+    	PrivacyDataPackage dataPackage;
+    	try {
+    		dataPackage = EncryptionProcessor.createPrivacyDataPackage(content, 
+                                                                       sensorUriPseudonym, 
+                                                                       encryptionParameters, 
+                                                                       publicKey.getEncoded());
+		} catch (EncryptionException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	// load certificate
+    	PrivateKey privateKey;
+		try {
+			privateKey = loadPrivateKeyFromFile(privateKeyPathStr);
+		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+		
+		System.out.println("loaded private key from file");
+    	
+		byte[] decryptedContent;
+    	try {
+    		decryptedContent = EncryptionProcessor.getContentOfPrivacyDataPackage(dataPackage, privateKey);
+		} catch (EncryptionException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+    	
+    	System.out.println("Decrypted content: " + new String(decryptedContent));
+    	
+    	return content.equals(new String(decryptedContent));
+    }
+    
+    private static X509Certificate loadCertificateFromFile(String certificatePathStr) throws CertificateException, IOException {    	
+        Path certPath = Paths.get(certificatePathStr);
+        
+        if (!(new File(certificatePathStr)).exists()) {
+            System.out.println("Certificate file not found. Please check the path given in configuration: '" + certificatePathStr + "'");
+            return null;
+        }
+        
+    	final CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+        
+        ByteArrayInputStream stream = new ByteArrayInputStream(Files.readAllBytes(certPath));
+        
+        final Collection<? extends Certificate> certs =
+             (Collection<? extends Certificate>) certFactory.generateCertificates(stream);
+        
+        if (certs.size() == 0) {
+        	System.out.println("No certificate found in file '" + certificatePathStr + "'");
+        	return null;
+        }
+        
+        if (certs.size() > 1) {
+        	System.out.println("More than one certificate found in file '" + certificatePathStr + "'. Load first one.");
+        }
+        
+    	Certificate cert = certs.iterator().next();
+    	if (cert instanceof X509Certificate) {    		
+    		return (X509Certificate)cert;
+    	}
+    	else {
+    		System.out.println("Certificate in file '" + certificatePathStr + "' is not a X.509 certificate");
+    		return null;
+    	}        
+    }
+    
+    private static PrivateKey loadPrivateKeyFromFile(String privateKeyPathStr) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    	File file = new File(privateKeyPathStr);
+    	
+    	if (!new File(privateKeyPathStr).exists()) {
+    		System.out.println("Private key file does not exist: '" + privateKeyPathStr + "'");
+    		return null;
+    	}
+    	
+    	if (!file.getName().endsWith(".der")) {
+    		System.out.println("Private key file has to be in .der format");
+    		return null;
+    	}
+    	
+    	// get private key of SSP
+    	
+        FileInputStream fis = new FileInputStream(file);
+        DataInputStream dis = new DataInputStream(fis);
+        byte[] keyBytes = new byte[(int)file.length()];
+        dis.readFully(keyBytes);
+        dis.close();
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = keyFactory.generatePrivate(keySpec);
+        
+        return privateKey;
+    }
     
     private static SymmetricCipherer createAESCipherer() {
         try {
@@ -780,15 +624,13 @@ public class TestMain {
         }
     }
     
-    private static void printDataPackage(EncryptedSensorDataPackage dataPackage) {
+    private static void printDataPackage(PrivacyDataPackage dataPackage) {
         System.out.println("Attributes:");
-        System.out.println("asymmetricEncryptionMethod: " + dataPackage.getAsymmetricEncryptionMethod());
-        System.out.println("asymmetricEncryptionBitStrength: " + dataPackage.getAsymmetricEncryptionBitStrength());
-        System.out.println("symmetricEncryptionMethod: " + dataPackage.getSymmetricEncryptionMethod());
-        System.out.println("symmetricEncryptionBitStrength: " + dataPackage.getSymmetricEncryptionBitStrength());
+        System.out.println("SensorUri: " + dataPackage.getSensorUri());
+        System.out.println("EncryptionAlgorithmCode: " + dataPackage.getSymmetricEncryptionAlgorithmCode());
+        System.out.println("encryptedInitializationVector: " + new String(dataPackage.getInitializationVector()));
+        System.out.println("encryptedKey: " + new String(dataPackage.getEncryptedSymmetricKey()));
         System.out.println("encryptedContent: " + new String(dataPackage.getEncryptedContent()));
-        System.out.println("encryptedInitializationVector: " + new String(dataPackage.getEncryptedInitializationVector()));
-        System.out.println("encryptedKey: " + new String(dataPackage.getEncryptedKey()));
     }
 
 }
