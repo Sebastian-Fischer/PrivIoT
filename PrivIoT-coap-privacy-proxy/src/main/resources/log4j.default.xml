@@ -18,7 +18,7 @@
         <appender-ref ref="console"/>
     </appender>
 
-    <logger name="priviot.cpp" additivity="false">
+    <logger name="de.uniluebeck.itm.priviot.cpp" additivity="false">
         <level value="INFO"/>
         <appender-ref ref="async"/>
     </logger>
