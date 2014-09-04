@@ -5,11 +5,13 @@ import java.net.MalformedURLException;
 
 import javax.xml.parsers.FactoryConfigurationError;
 
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
-import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import de.uniluebeck.itm.priviot.coapwebserver.controller.CoapWebserverController;
 
 public class CoapWebserverMain {
@@ -18,14 +20,10 @@ public class CoapWebserverMain {
 	
 	private static Logger log = Logger.getLogger(CoapWebserverMain.class.getName());
 	
-	private final static int OWN_PORT = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 1;
-	private final static String urlSSP = "localhost";
-	private final static int portSSP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 2;
-	private final static String urlCPP = "localhost";
-	private final static int portCPP = CoapServerApplication.DEFAULT_COAP_SERVER_PORT + 3;
+	private static String LOG_CONFIG_FILE_NAME = "log4j.xml";
+	private static String CONFIG_FILE_NAME = "coapwebserver.properties";
 	
-	private static String CONFIG_FILE_NAME = "log4j.xml";
-	
+	private static Configuration config;
 	
 	public static void main(String[] args) {
 		System.out.println("PrivIoT - CoAP Webserver (version " + version + ")");
@@ -36,7 +34,15 @@ public class CoapWebserverMain {
         } catch (MalformedURLException | FactoryConfigurationError e) {
             e.printStackTrace();
         }
-		System.out.println("Configure logging: done");		
+		System.out.println("Configure logging: done");	
+		
+		log.info("read configuration");
+		try {
+			config = new PropertiesConfiguration(CONFIG_FILE_NAME);
+		} catch (ConfigurationException e) {
+			log.error("error during configuration", e);
+		}
+		log.info("read configuration: done");
 		
 		log.info("start controller");
 		startController();
@@ -44,10 +50,10 @@ public class CoapWebserverMain {
 	}
 	
 	private static void configureLogging() throws MalformedURLException, FactoryConfigurationError {
-        File configFile = new File(CONFIG_FILE_NAME);
+        File configFile = new File(LOG_CONFIG_FILE_NAME);
         
         if(configFile.exists()){
-            System.out.println("Configure logging from file '" + CONFIG_FILE_NAME + "'.");
+            System.out.println("Configure logging from file '" + LOG_CONFIG_FILE_NAME + "'.");
             DOMConfigurator.configure(configFile.toURI().toURL());
         }
         else {
@@ -57,7 +63,7 @@ public class CoapWebserverMain {
     }
 	
 	private static void startController() {
-	    CoapWebserverController controller = new CoapWebserverController(OWN_PORT, urlSSP, portSSP, urlCPP, portCPP);
+	    CoapWebserverController controller = new CoapWebserverController(config);
 	    
 	    controller.start();
 	}

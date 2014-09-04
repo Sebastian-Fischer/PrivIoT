@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 
+import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +41,6 @@ import de.uniluebeck.itm.priviot.coapwebserver.data.WktLiteral;
 import de.uniluebeck.itm.priviot.coapwebserver.sensor.GeographicSensor;
 import de.uniluebeck.itm.priviot.coapwebserver.sensor.Sensor;
 import de.uniluebeck.itm.priviot.coapwebserver.sensor.SensorObserver;
-import de.uniluebeck.itm.priviot.coapwebserver.sensor.SimpleIntegerSensor;
 import de.uniluebeck.itm.priviot.coapwebserver.service.CoapRegisterClient;
 import de.uniluebeck.itm.priviot.coapwebserver.service.CoapRegisterClientObserver;
 import de.uniluebeck.itm.priviot.coapwebserver.service.CoapSensorWebservice;
@@ -64,19 +64,25 @@ import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationExceptio
  */
 public class CoapWebserverController implements SensorObserver, CoapRegisterClientObserver {
     
-    private static final int NUMBER_OF_THREADS = 1;
-    
     /** URI of the host */
     private static final String HOST_URI = "coap://localhost";
-    /** URI for pseudonyms */
-    private static final String PSEUDONYM_URI_HOST = "http://www.pseudonym.com/";
     
-    /** URI of the sensor */
-    private static final String SENSOR2_URI_PATH = "/sensor1";
-    /** frequency in which new values are published by the sensor in seconds */
-    private static final int SENSOR2_UPDATE_FREQUENCY = 30;
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+    
+    
+    /** Base path of sensors. The sensors will be for example <HOST_URI><sensorBasePath>/1 */
+    private String sensorBasePath;
+    
+    /** URI for pseudonyms */
+    private String pseudonymUriHost;
+    
+    private int numberOfThreads;
+    
+    private int numberOfSensors;
+    
+    /** default frequency in which new values are published by the sensor in seconds */
+    private int sensorDefaultUpdateFrequency;
     
     /** Listens to a local port. Web servers can be registered here. */
     private CoapServerApplication coapServerApplication;
@@ -99,18 +105,32 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     /** Parameters for encryption (used algorithms and keysizes) */
     private EncryptionParameters encryptionParameters;
     
+    private Configuration config;
+    
     /**
      * Constructor.
      * 
      * Starts Sensors and Webservices and connects them.
      * Starts the coap components.
      * 
-     * @param urlSSP   The host url of the Smart Service Proxy
-     * @param portSSP  The port of the Smart Service Proxy
-     * @param urlCPP   The host url of the CoAP Privacy Proxy
-     * @param portCPP  The port of the CoAP Privacy Proxy
+     * @param config   The programs configuration
      */
-    public CoapWebserverController(int ownPort, String urlSSP, int portSSP, String urlCPP, int portCPP) {
+    public CoapWebserverController(Configuration config) {
+    	this.config = config;
+    	
+    	numberOfThreads = config.getInt("threads");
+    	sensorBasePath = config.getString("sensorbasepath");
+    	pseudonymUriHost = config.getString("pseudonymuri");
+    	numberOfSensors = config.getInt("sensor.count");
+    	sensorDefaultUpdateFrequency = config.getInt("sensor.updatefrequency");
+    	int ownPort = config.getInt("port");
+    	String urlSSP = config.getString("ssp.host");
+    	int portSSP = config.getInt("ssp.port");
+    	String urlCPP = config.getString("cpp.host");
+    	int portCPP = config.getInt("cpp.port");
+    	int aesBitStrength = config.getInt("encryption.aesstrength");
+    	
+    	
     	coapServerApplication = new CoapServerApplication(ownPort);
         coapClientApplication = new CoapClientApplication();
         
@@ -119,7 +139,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         
         keyDatabase = new KeyDatabase();
         
-        encryptionParameters = new EncryptionParameters(AESCipherer.getAlgorithm(), 256,
+        encryptionParameters = new EncryptionParameters(AESCipherer.getAlgorithm(), aesBitStrength,
                                                         RSACipherer.getAlgorithm(), 1024);
         
         createSensorsAndWebservices();
@@ -145,43 +165,59 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     private void createSensorsAndWebservices() {
         // Create a thread pool that executes the sensor processing
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("CoAP Webserver Sensor Thread#%d").build();
-        ScheduledThreadPoolExecutor executorService = new ScheduledThreadPoolExecutor(NUMBER_OF_THREADS, threadFactory);
+        ScheduledThreadPoolExecutor executorService = new ScheduledThreadPoolExecutor(numberOfThreads, threadFactory);
         
-        // create and initialize a GeographicSensor and it's Webservice
-        GeographicSensor sensor2 = new GeographicSensor(SENSOR2_URI_PATH, SENSOR2_UPDATE_FREQUENCY, executorService);
-        initializeSensorAndCreateWebservice(sensor2);
-        sensor2.start(5);
-    }
-    
-    private void initializeSensorAndCreateWebservice(Sensor sensor) {
-    	sensor.addObserver(this);
-        
-    	//TODO: create random secret for both sensors
-    	if (sensor.getSensorUriPath().equals(SENSOR2_URI_PATH)) {
-	    	log.error("TEST-CODE: Take fixed secret for "  + SENSOR2_URI_PATH);
-	    	final byte[] SECRET = {84, -96, -33, -95, 19, -64, 61, -41, -46, 108, -35, 56, 99, 25, -29, -53, 57, -25, -59, 123, 10, -75, -91, 40, -66, -9, 66, 9, -77, 70, 74, -53, -41, -102, -20, 15, 118, -68, 12, 70, -71, -2, 90, -52, -53, 113, -98, 46, -21, 13, -67, -87, 24, 73, 28, 115, -28, 120, -13, -78, -86, -104, 104, -121, 15, -25, 61, 54, -88, -64, -42, 106, -80, 65, -107, -54, 19, 94, 8, 8, -19, 0, -95, 38, 121, 92, 2, 38, -14, 9, 91, -75, 14, -61, 121, 47, -85, 63, 119, 9, -32, -42, -94, 32, 71, 0, 99, -36, 17, -124, -18, -128, 74, 63, -75, -46, 52, -66, 56, -127, -98, -64, -56, 51, -78, -81, -18, 29, 26, 25, -71, 48, 25, 101, 56, 5, -90, 11, -13, 116, 70, -112, 63, 63, -109, 98, -127, -78, 118, -53, -109, -116, -7, 127, -66, 123, 73, 69, 66, -19, -48, 100, 9, 4, 92, -47, -113, -104, -92, -15, -9, 53, -1, -74, -103, -31, 35, -26, -113, -14, -116, -84, 110, -119, 11, -113, -62, -39, -10, 79, -20, 114, 47, 3, 40, 61, 117, 45, -83, -65, -83, -55, 75, -26, -64, -44, -47, -65, 127, -126, 73, -78, 112, -94, -7, -120, -4, -60, -71, -96, 106, -56, 85, -128, 109, -69, -65, 80, -20, 56, 110, 28, 18, -24, 45, -25, -101, 112, 90, -59, 121, 123, 49, 8, -124, 17, 40, -128, 98, 61, -8, 84, 20, -72, -119, -2};
-	    	sensor.setSecret(SECRET);
-    	}
-    	else {
-	        // create a secret, that is later used to create the pseudonyms for the sensor
-	        byte[] secret;
-	        try {
-				secret = PseudonymizationProcessor.generateHmac256Secret();
-			} catch (PseudonymizationException e) {
-				log.error("Error while generating secret", e);
-				return;
-			}
+        for (int i = 1; i <= numberOfSensors; i++) {
+        	String sensorPath = sensorBasePath + String.valueOf(i);
+        	
+        	log.info("initialize sensor: " + sensorPath);
+        	
+        	// if there is a special updateFrequency given in config take that one
+        	int updateFrequency;
+        	try {
+        		updateFrequency = config.getInt("sensor" + i + ".updateFrequency");
+        		log.debug("initialize sensor " + sensorPath + " with special updateFrequency " + updateFrequency);
+        	}
+        	catch (Exception e) {
+        		updateFrequency = sensorDefaultUpdateFrequency;
+        	}
+        	
+        	// if there is a special secret given in config take that one
+        	byte[] secret;
+        	try {
+        		List<Object> secretObj = config.getList("sensor" + i + ".secret");
+        		secret = new byte[secretObj.size()];
+        		for (int b = 0; b < secretObj.size(); b++) {
+        			secret[b] = Byte.valueOf((String)secretObj.get(b));
+        		}
+        		log.debug("initialize sensor " + sensorPath + " with special secret");
+        	}
+        	catch (Exception e) {
+        		// if no special secret, create one (default behavior)
+        		try {
+    				secret = PseudonymizationProcessor.generateHmac256Secret();
+    			} catch (PseudonymizationException e1) {
+    				log.error("Error while generating secret for sensor" + i, e1);
+    				return;
+    			}
+        	}
+        	
+	        // create and initialize a GeographicSensor and it's Webservice
+	        GeographicSensor sensor = new GeographicSensor(sensorPath, updateFrequency, executorService);
 	        sensor.setSecret(secret);
-    	}
-        
-        // create a webservice for the sensor
-        CoapSensorWebservice coapWebservice = new CoapSensorWebservice(sensor.getSensorUriPath(), sensor.getUpdateFrequency(),
-                                                                        encryptionParameters, keyDatabase);
-        
-        sensors.add(sensor);
-        coapSensorWebservices.add(coapWebservice);
-        
-        coapServerApplication.registerService(coapWebservice);
+	        sensor.addObserver(this);
+	        
+	        // create a webservice for the sensor
+	        CoapSensorWebservice coapWebservice = new CoapSensorWebservice(sensor.getSensorUriPath(), sensor.getUpdateFrequency(),
+	                                                                        encryptionParameters, keyDatabase);
+	        
+	        sensors.add(sensor);
+	        coapSensorWebservices.add(coapWebservice);
+	        
+	        coapServerApplication.registerService(coapWebservice);
+	        
+	        sensor.start(5);
+        }
     }
 
     /**
@@ -204,11 +240,11 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
 			log.error("Error during Pseudonymization of new sensor data", e);
 			return;
 		}
-    	sensorPseudonym = PSEUDONYM_URI_HOST + sensorPseudonym;
+    	sensorPseudonym = pseudonymUriHost + sensorPseudonym;
     	
     	// initialize Apache Jena RDF model
     	Model model = ModelFactory.createDefaultModel();
-    	model.setNsPrefix("pseudonym", PSEUDONYM_URI_HOST);
+    	model.setNsPrefix("pseudonym", pseudonymUriHost);
     	Resource resSensor = model.createResource(sensorPseudonym);
     	
     	// format and insert the sensor data into the model
