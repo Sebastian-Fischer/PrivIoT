@@ -126,12 +126,15 @@ public abstract class Sensor {
 	    long maxTimeDifferenceMilli = maxTimeDifference * 1000;
 	    long modulo = (new Date()).getTime() % (updateFrequencyMilli);
 	    
+	    Date lastUpdate = new Date((new Date()).getTime() - modulo);
+		Date nextUpdate = new Date((new Date()).getTime() - modulo + updateFrequencyMilli);
+	    
 	    if (modulo > maxTimeDifferenceMilli) {
-			sleepTime = (updateFrequencyMilli - modulo) + 1000; // 1000 for tolerance
-			log.debug(modulo + " seconds after last update time. Sensor starts after " + sleepTime + " milliseconds");
+			sleepTime = (updateFrequencyMilli - modulo) + 100; // 100 for tolerance of sleep
+			log.debug(modulo + " seconds after last update time. Sensor starts after " + sleepTime + " milliseconds. Next update time is " + nextUpdate);
 		}
 	    else {
-	    	log.debug(modulo + " seconds after last update time.");
+	    	log.debug(modulo + " seconds after last update time (" + lastUpdate + ").");
 	    }
 	    
 	    scheduledExecutorService.scheduleAtFixedRate(new Runnable(){

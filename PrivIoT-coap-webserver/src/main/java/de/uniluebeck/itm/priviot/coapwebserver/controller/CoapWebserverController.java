@@ -4,6 +4,8 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -70,11 +72,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     private static final String PSEUDONYM_URI_HOST = "http://www.pseudonym.com/";
     
     /** URI of the sensor */
-    private static final String SENSOR1_URI_PATH = "/sensor1";
-    /** frequency in which new values are published by the sensor in seconds */
-    private static final int SENSOR1_UPDATE_FREQUENCY = 20;
-    /** URI of the sensor */
-    private static final String SENSOR2_URI_PATH = "/sensor2";
+    private static final String SENSOR2_URI_PATH = "/sensor1";
     /** frequency in which new values are published by the sensor in seconds */
     private static final int SENSOR2_UPDATE_FREQUENCY = 30;
     
@@ -148,11 +146,6 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         // Create a thread pool that executes the sensor processing
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("CoAP Webserver Sensor Thread#%d").build();
         ScheduledThreadPoolExecutor executorService = new ScheduledThreadPoolExecutor(NUMBER_OF_THREADS, threadFactory);
-        
-        // create and initialize a SimpleIntegerSensor and it's Webservice
-        SimpleIntegerSensor sensor1 = new SimpleIntegerSensor(SENSOR1_URI_PATH, SENSOR1_UPDATE_FREQUENCY, executorService);
-        initializeSensorAndCreateWebservice(sensor1);
-        sensor1.start();
         
         // create and initialize a GeographicSensor and it's Webservice
         GeographicSensor sensor2 = new GeographicSensor(SENSOR2_URI_PATH, SENSOR2_UPDATE_FREQUENCY, executorService);
@@ -230,6 +223,11 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         	return;
         }
         
+        StringWriter stringWriter = new StringWriter();
+        model.write(stringWriter, "N3");
+        String rdfModelStr = stringWriter.getBuffer().toString();
+        log.debug("New sensor data available:\n" + rdfModelStr);
+        
         ResourceStatus resourceStatus = new ResourceStatus(sensorPseudonym, model, data.getLifetime());
         
         // finds the corresponding web service for the sensor URI
@@ -241,11 +239,6 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         }
         
         webservice.updateResourceStatus(resourceStatus);
-        
-        StringWriter stringWriter = new StringWriter();
-        model.write(stringWriter, "N3");
-        String rdfModelStr = stringWriter.getBuffer().toString();
-        log.debug("New sensor data available:\n" + rdfModelStr);
     }
     
     private void putIntegerSensorDataIntoModel(SimpleIntegerSensorData sensorData, Model model, Resource resSensor) {        
@@ -308,13 +301,18 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     public void receivedCertificate(URI fromUri, X509Certificate certificate) {
         log.info("received certificate for " + certificate.getSubjectX500Principal().getName());
         
+        try {
+        	certificate.checkValidity();
+        }
+        catch (CertificateExpiredException | CertificateNotYetValidException e) {
+        	log.error("Received certificate is not valid!");
+        }
+        
         //TODO: check certificate
         log.warn("TODO: check the received certificate");
         
-        byte[] publicKey = certificate.getPublicKey().getEncoded();
-        
-        // save public key
-        keyDatabase.addEntry(new KeyDatabaseEntry(fromUri, publicKey));
+        // save public key. Method is thread safe.
+        keyDatabase.addEntry(new KeyDatabaseEntry(fromUri, certificate.getPublicKey()));
         
         // send register request to CoAP Privacy Proxy
         try {

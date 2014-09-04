@@ -6,6 +6,7 @@ import java.util.List;
 
 /**
  * Saves public keys of Smart Service Proxies.
+ * Methods of the class are thread save.
  */
 public class KeyDatabase {
     
@@ -21,7 +22,7 @@ public class KeyDatabase {
      * Attribute url of entry must not be null.
      * @param entry
      */
-    public void addEntry(KeyDatabaseEntry entry) {
+    public synchronized void addEntry(KeyDatabaseEntry entry) {
         if (entry == null || entry.getURI() == null) {
             return;
         }
@@ -34,7 +35,7 @@ public class KeyDatabase {
      * @param url
      * @return
      */
-    public KeyDatabaseEntry getEntry(URI url) {
+    public synchronized KeyDatabaseEntry getEntry(URI url) {
         for (KeyDatabaseEntry entry : entries) {
             if (entry.getURI().getHost().equals(url.getHost())) {
                 return entry;
@@ -48,7 +49,7 @@ public class KeyDatabase {
      * Returns a list containing the URLs of all database entries.
      * @return
      */
-    public List<URI> getAllEntryUrls() {
+    public synchronized List<URI> getAllEntryUrls() {
         List<URI> list = new ArrayList<URI>();
         
         for (KeyDatabaseEntry entry : entries) {

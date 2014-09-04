@@ -24,7 +24,7 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
-import de.uniluebeck.itm.priviot.utils.data.transfer.PrivIoTContentFormat;
+import de.uniluebeck.itm.priviot.utils.data.PrivIoTContentFormat;
 
 /**
  * This component has two tasks to perform:

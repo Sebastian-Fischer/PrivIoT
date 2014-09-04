@@ -1,14 +1,19 @@
 package de.uniluebeck.itm.priviot.coapwebserver.service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+
+import javax.xml.bind.JAXBException;
+import javax.xml.stream.XMLStreamException;
 
 import org.apache.log4j.Logger;
 
@@ -32,18 +37,21 @@ import de.uniluebeck.itm.priviot.coapwebserver.data.KeyDatabaseEntry;
 import de.uniluebeck.itm.priviot.coapwebserver.data.ResourceStatus;
 import de.uniluebeck.itm.priviot.utils.EncryptionProcessor;
 import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
-import de.uniluebeck.itm.priviot.utils.data.transfer.EncryptedSensorDataPackage;
-import de.uniluebeck.itm.priviot.utils.data.transfer.PrivIoTContentFormat;
+import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageMarshaller;
+import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
 
 /**
  * Webservice over the COAP protocol.
- * Is used by COAPService. 
+ * There will be one instance for every sensor.
+ * 
+ * The resource of the CoapSensorWebservice is the sensor.
+ * The resource status is represented by a {@link ResourceStatus} object.
  * 
  * The COAPWebservice is observable for clients.
  */
 public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> {
-	public static long DEFAULT_CONTENT_FORMAT = PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML;
+	public static long DEFAULT_CONTENT_FORMAT = ContentFormat.APP_XML;
 	
 	private Logger log = Logger.getLogger(this.getClass().getName());
 
@@ -71,23 +79,8 @@ public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> 
 
         this.templates = new HashMap<>();
 
-        //add support for encrypted/rdf/xml content
-        addContentFormat(
-                PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML,
-                "%s"
-        );
-
-        //add support for encrypted/n3 content
-        addContentFormat(
-                PrivIoTContentFormat.APP_ENCRYPTED_N3,
-                "%s"
-        );
-        
-        //add support for encrypted/turtle content
-	    addContentFormat(
-	            PrivIoTContentFormat.APP_ENCRYPTED_TURTLE,
-	            "%s"
-	    );
+        //add support for xml content
+        addContentFormat(DEFAULT_CONTENT_FORMAT, "%s");
     }
     
     public void updateResourceStatus(ResourceStatus newResourceStatus) {
@@ -231,28 +224,19 @@ public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> 
         }
         
         String ressourceStatusString = "";
-        if (contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML || 
-            contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_N3 ||
-            contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_TURTLE) {
-            
+        if (contentFormat == ContentFormat.APP_XML) {
             
         	String sensorPseudonymUri = getResourceStatus().getSensorUri();
             Model rdfModel = getResourceStatus().getRdfModel();
             int lifetime = getResourceStatus().getLifetime();
             
-            String language;
-            if (contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML) {
-                language = "RDF/XML";
-            }
-            else if (contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_N3) {
-                language = "N3";
-            }
-            else if (contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_TURTLE) {
-                language = "TURTLE";
-            }
-            else {
-                return null;
-            }
+            // content format of the encrypted content
+            String language = "N3";
+            long innerContentFormat = ContentFormat.APP_N3;
+            //String language = "RDF/XML";
+            //long innerContentFormat = ContentFormat.APP_RDF_XML;
+            //String language = "TURTLE";
+            //long innerContentFormat = ContentFormat.APP_TURTLE;
             
             StringWriter stringWriter = new StringWriter();
             rdfModel.write(stringWriter, language);
@@ -276,26 +260,33 @@ public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> 
                 log.error("No public key knwon for recipient '" + uriRecipient.getHost() + "'");
                 return null;
             }
-            byte[] publicKeyRecipient = keyDatabaseEntry.getPublicKey();
+            PublicKey publicKeyRecipient = keyDatabaseEntry.getPublicKey();
             
             // encrypt content and build data package
-            EncryptedSensorDataPackage encryptedSensorDataPackage;
+            PrivacyDataPackage privacyDataPackage;
             try {
-                encryptedSensorDataPackage = 
-                        EncryptionProcessor.createEncryptedDataPackage(rdfModelStr, 
-                                                               lifetime,
-                                                               sensorPseudonymUri,
-                                                               encryptionParameters.getSymmetricEncryptionAlgorithm(),
-                                                               encryptionParameters.getSymmetricEncryptionKeySize(),
-                                                               encryptionParameters.getAsymmetricEncryptionAlgorithm(),
-                                                               encryptionParameters.getAsymmetricEncryptionKeySize(),
-                                                               publicKeyRecipient);
+                privacyDataPackage = 
+                        EncryptionProcessor.createPrivacyDataPackage(rdfModelStr,
+	                                                                 sensorPseudonymUri,
+	                                                                 innerContentFormat,
+	                                                                 encryptionParameters,
+	                                                                 publicKeyRecipient);
             } catch (EncryptionException e) {
                 log.error(e.getMessage());
                 return null;
             }
             
-            ressourceStatusString = encryptedSensorDataPackage.toXMLString();
+            // serialize privacyDataPackage
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            try {
+               PrivacyDataPackageMarshaller.marshal(privacyDataPackage, outStream);
+            }
+            catch (JAXBException | XMLStreamException e) {
+                log.error("Failure during serialization of PrivacyDataPackage", e);
+                return null;
+            }
+            
+            ressourceStatusString = outStream.toString();
         }
         else {
             // contentFormat not supported

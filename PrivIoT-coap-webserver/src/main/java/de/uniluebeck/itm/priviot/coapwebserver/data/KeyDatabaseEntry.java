@@ -1,6 +1,7 @@
 package de.uniluebeck.itm.priviot.coapwebserver.data;
 
 import java.net.URI;
+import java.security.PublicKey;
 
 /**
  * An entry in the KeyDatabase.
@@ -12,13 +13,13 @@ public class KeyDatabaseEntry {
     private URI uri;
     
     /** The public key */
-    private byte[] publicKey = new byte[0];
+    private PublicKey publicKey;
     
     /** Encryption algorithm */
     private String encryptionAlgorithm = "";
     
     
-    public KeyDatabaseEntry(URI uri, byte[] publicKey) {
+    public KeyDatabaseEntry(URI uri, PublicKey publicKey) {
         this.uri = uri;
         this.publicKey = publicKey;
     }
@@ -32,11 +33,11 @@ public class KeyDatabaseEntry {
         this.uri = uri;
     }
     
-    public byte[] getPublicKey() {
+    public PublicKey getPublicKey() {
         return publicKey;
     }
     
-    public void setPublicKey(byte[] publicKey) {
+    public void setPublicKey(PublicKey publicKey) {
         this.publicKey = publicKey;
     }
 
