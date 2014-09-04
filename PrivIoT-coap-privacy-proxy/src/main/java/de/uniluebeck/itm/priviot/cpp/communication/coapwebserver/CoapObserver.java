@@ -13,9 +13,9 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
+import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 import de.uniluebeck.itm.priviot.cpp.communication.CoapClient;
 import de.uniluebeck.itm.priviot.cpp.communication.CoapClientListener;
-import de.uniluebeck.itm.priviot.utils.data.transfer.PrivIoTContentFormat;
 
 /**
  * The CoapObserver registeres the Coap Privacy Proxy at observable sensor webservices 
@@ -60,9 +60,7 @@ public class CoapObserver {
         
         CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.GET, uriWebservice, false);
         
-        coapRequest.setAccept(PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML);
-        coapRequest.setAccept(PrivIoTContentFormat.APP_ENCRYPTED_N3);
-        coapRequest.setAccept(PrivIoTContentFormat.APP_ENCRYPTED_TURTLE);
+        coapRequest.setAccept(ContentFormat.APP_XML);
         
         coapRequest.setObserve();
         
@@ -82,12 +80,14 @@ public class CoapObserver {
                     log.error("Wrong behavior of webservice. Received message with code " + response.getMessageCodeName());
                     return;
                 }
+                
                 if (response.getContent().readableBytes() == 0) {
                     // empty status
                     return;
                 }
+                
                 if (listener != null) {
-                    listener.receivedActualStatus(enpoint, response.getContentFormat(), response.getContent());
+                    listener.receivedActualStatus(enpoint, response.getContentFormat(), response.getContent(), response.getMaxAge());
                 }
             }
         });

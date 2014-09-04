@@ -19,7 +19,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebservice;
 import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LinkAttribute;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
@@ -27,8 +26,6 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
 import de.uniluebeck.itm.ncoap.message.options.OptionValue;
-import de.uniluebeck.itm.priviot.cpp.data.Registry;
-import de.uniluebeck.itm.priviot.cpp.data.RegistryEntry;
 
 /**
  * A CoAP-Webservice, that accepts registrations from CoAP-Webservers.
@@ -48,9 +45,6 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
-    /** saves information about registered CoAP-Webservers */
-    private Registry registry;
-    
     /** Client used to send requests */
     private CoapClientApplication clientApplication;
     
@@ -61,10 +55,9 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
     CoapRegistryWebserviceListener listener;
     
     
-    public CoapRegistryWebservice(Registry registry, CoapClientApplication clientApplication, int portSSP, int portWebserver) {
+    public CoapRegistryWebservice(CoapClientApplication clientApplication, int portSSP, int portWebserver) {
         super(PATH_REGISTRY_RESSOURCE, null, OptionValue.MAX_AGE_DEFAULT);
         
-        this.registry = registry;
         this.clientApplication = clientApplication;
         this.portSSP = portSSP;
         this.portWebserver = portWebserver;
@@ -110,9 +103,6 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
                 return;
             }
             
-            // save webserver in the registry
-            registry.addEntry(new RegistryEntry(uriWebserver, uriSSP));
-            
             // notify listener
             if (listener != null) {
                 listener.registeredNewWebserver(uriWebserver, uriSSP);
@@ -123,17 +113,9 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
 
             Futures.addCallback(servicesFuture, new FutureCallback<Set<URI>>() {
                 @Override
-                public void onSuccess(Set<URI> result) {
-                    
-                    RegistryEntry entry = registry.getEntry(uriWebserver);
-                    if (entry == null) {
-                        return;
-                    }
-                        
+                public void onSuccess(Set<URI> result) {                        
                     // add available webservices to registry
-                    for (URI uriWebservice : result){
-                        entry.addWebservice(uriWebservice);
-                        
+                    for (URI uriWebservice : result){                        
                         // notify listener
                         if (listener != null) {
                             listener.registeredNewWebservice(uriWebservice);

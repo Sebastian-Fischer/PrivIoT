@@ -1,12 +1,15 @@
 package de.uniluebeck.itm.priviot.cpp.communication.smartserviceproxy;
 
+import java.io.ByteArrayOutputStream;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+
+import javax.xml.bind.JAXBException;
+import javax.xml.stream.XMLStreamException;
 
 import org.apache.log4j.Logger;
 
@@ -24,67 +27,39 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageCode;
 import de.uniluebeck.itm.ncoap.message.MessageType;
 import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
-import de.uniluebeck.itm.priviot.utils.data.transfer.EncryptedSensorDataPackage;
-import de.uniluebeck.itm.priviot.utils.data.transfer.PrivIoTContentFormat;
+import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageMarshaller;
+import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
 
 /**
- * One CoAP-Webservice for every known Smart Service Proxy (SSP) that is observable for the SSP.
+ * One CoAP-Webservice for every Original CoAP-Webservice that sends the data.
  * 
- * The CoapForwardingWebservice forwards the received sensor data of the CoAP-Webservers to the SSP.
+ * The CoapForwardingWebservice forwards the received {@link PrivacyDataPackage} of the CoAP-Webservice to the SSP.
  * 
  * When a SSP asks for the resource /.well-known/core, 
- * he finds the CoapForwardingWebservice as observable webservices.
+ * he finds the CoapForwardingWebservice as observable webservice.
  */
-public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSensorDataPackage> {
+public class CoapForwardingWebservice  extends ObservableWebservice<PrivacyDataPackage> {
 	private Logger log = Logger.getLogger(CoapForwardingWebservice.class.getName());
 
     private Map<Long, String> templates;
-    
-    /** The URI of the Smart Service Proxy the CoapForwardingWebservice is used for */
-    private URI uriSSP;
     
     /**
      * Constructor
      * @param path Path where the Webservice is registered
      * @param updateInterval Interval of resource update in seconds
      */
-    public CoapForwardingWebservice(String path, URI uriSSP) {
+    public CoapForwardingWebservice(String path) {
     	super(path, null);
 
         this.templates = new HashMap<>();
-        
-        this.uriSSP = uriSSP;
 
-      //add support for encrypted/rdf/xml content
-        addContentFormat(
-                PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML,
-                "%s"
-        );
-
-        //add support for encrypted/n3 content
-        addContentFormat(
-                PrivIoTContentFormat.APP_ENCRYPTED_N3,
-                "%s"
-        );
-        
-        //add support for encrypted/turtle content
-        addContentFormat(
-                PrivIoTContentFormat.APP_ENCRYPTED_TURTLE,
-                "%s"
-        );
+        //add support for xml content
+        addContentFormat(ContentFormat.APP_XML, "%s");
     }
     
-    /**
-     * Returns the URI of the Smart Service Proxy the CoapForwardingWebservice is used for
-     * @return
-     */
-    public URI getUriSSP() {
-        return uriSSP;
-    }
-    
-    public void updateRdfSensorData(EncryptedSensorDataPackage dataPackage) {
-    	log.debug("New sensor data for SSP '" + uriSSP.getHost() + "' available");
-    	setResourceStatus(dataPackage, dataPackage.getContentLifetime());
+    public void updateRdfSensorData(PrivacyDataPackage dataPackage, long contentLifetimeSeconds) {
+    	log.debug("New sensor data available to forward");
+    	setResourceStatus(dataPackage, contentLifetimeSeconds);
     }
     
     private void addContentFormat(long contentFormat, String template){
@@ -114,7 +89,7 @@ public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSen
 
 
     @Override
-    public void updateEtag(EncryptedSensorDataPackage resourceStatus) {
+    public void updateEtag(PrivacyDataPackage resourceStatus) {
         //nothing to do here...
     }
 
@@ -210,11 +185,19 @@ public class CoapForwardingWebservice  extends ObservableWebservice<EncryptedSen
         }
         
         String ressourceStatusString = "";
-        if (contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_RDF_XML || 
-            contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_N3 ||
-            contentFormat == PrivIoTContentFormat.APP_ENCRYPTED_TURTLE) {
+        if (contentFormat == ContentFormat.APP_XML) {
             
-            ressourceStatusString = getResourceStatus().toXMLString();
+        	// serialize privacyDataPackage
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            try {
+               PrivacyDataPackageMarshaller.marshal(getResourceStatus(), outStream);
+            }
+            catch (JAXBException | XMLStreamException e) {
+                log.error("Failure during serialization of PrivacyDataPackage", e);
+                return null;
+            }
+            
+            ressourceStatusString = outStream.toString();
         }
         else {
             // contentFormat not supported

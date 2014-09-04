@@ -21,10 +21,10 @@ public class RegistryEntry {
     private URI ssp;
     
     /**
-     * The url of every CoAP-Webservice, 
+     * The information about every CoAP-Webservice, 
      * that is located at the CoAP-Webserver.
      */
-    private Set<URI> webservices = new HashSet<URI>();
+    private Set<WebserviceEntry> webservices = new HashSet<WebserviceEntry>();
     
     
     public RegistryEntry(URI webserver, URI ssp) {
@@ -48,14 +48,23 @@ public class RegistryEntry {
         this.ssp = ssp;
     }
 
-    public Set<URI> getWebservices() {
+    public Set<WebserviceEntry> getWebservices() {
         return webservices;
     }
     
-    public void addWebservice(URI webservice) {
-        if (webservice != null) {
-            webservices.add(webservice);
+    public void addWebservice(WebserviceEntry webserviceEntry) {
+        if (webserviceEntry != null) {
+            webservices.add(webserviceEntry);
         }
+    }
+    
+    public WebserviceEntry getWebservice(URI uriWebservice) {
+    	for (WebserviceEntry webserviceEntry : webservices) {
+            if (webserviceEntry.getWebserviceUri().equals(uriWebservice)) {
+                return webserviceEntry;
+            }
+    	}
+    	return null;
     }
     
     /**
@@ -66,8 +75,8 @@ public class RegistryEntry {
      * @return
      */
     public boolean containsWebservice(String webservicePath) {
-        for (URI uri : webservices) {
-            if (uri.getPath().equals(webservicePath)) {
+        for (WebserviceEntry webserviceEntry : webservices) {
+            if (webserviceEntry.getWebserviceUri().getPath().equals(webservicePath)) {
                 return true;
             }
         }

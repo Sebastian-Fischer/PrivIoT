@@ -57,9 +57,7 @@ public class Registry {
             if (entry.getWebserver().getHost().equals(uriWebservice.getHost()) &&
                 entry.getWebserver().getPort() == uriWebservice.getPort()) {
                 
-                if (entry.containsWebservice(uriWebservice.getPath())) {
-                    return entry;
-                }
+                return entry;
             }
             
         }
