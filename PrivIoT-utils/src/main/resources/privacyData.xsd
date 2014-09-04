@@ -45,7 +45,16 @@ The private key of the recipient is needed to decrypt the content.
           </xs:annotation>
         </xs:element>
         
-
+        <xs:element name="format" type="xs:int">
+          <xs:annotation>
+            <xs:appinfo>
+              <jaxb:property name="contentFormat">
+                <jaxb:javadoc>Content format of the encrypted content. Given in constants of the coap standard.</jaxb:javadoc>
+              </jaxb:property>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+        
 
         <!-- Meta information about the encryption -->
 

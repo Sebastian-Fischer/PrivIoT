@@ -56,8 +56,10 @@ public class PseudonymizationProcessor {
 		Date actDate = new Date();
 		// milliseconds since January 1, 1970.
 		long milliseconds = actDate.getTime();
-		// seconds since January 1, 1970 rounded to timePeriod
-		int roundedSeconds = (int)Math.round(((double)milliseconds / 1000.0) / (double)timePeriod) * timePeriod;
+		// milliseconds since last update time
+		long modulo = milliseconds % (timePeriod*1000);
+		// seconds since January 1, 1970 at the last update time
+		int roundedSeconds = (int)(milliseconds - modulo);
 		
 		// concatenate
 		String plaintext = original + roundedSeconds;

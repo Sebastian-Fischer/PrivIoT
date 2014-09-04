@@ -5,6 +5,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 
 import javax.crypto.BadPaddingException;
@@ -40,8 +41,9 @@ public abstract class EncryptionProcessor {
      */
     public static PrivacyDataPackage createPrivacyDataPackage(String content,
             String sensorUriPseudonym,
+            long contentFormat,
             EncryptionParameters encryptionParameters,
-            byte[] publicKeyRecipient) throws EncryptionException {
+            PublicKey publicKeyRecipient) throws EncryptionException {
         
         PrivacyDataPackage dataPackage = new PrivacyDataPackage();
         SymmetricCipherer symmetricCipherer;
@@ -85,7 +87,7 @@ public abstract class EncryptionProcessor {
             throw new EncryptionException("BitStrength for asymmetric encryption not supported: " + encryptionParameters.getAsymmetricEncryptionBitStrength(), e);
         }
         try {
-            asymmetricCipherer.setPublicKeyFromByteArray(publicKeyRecipient);
+            asymmetricCipherer.setPublicKeyFromByteArray(publicKeyRecipient.getEncoded());
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new EncryptionException("Invalid public key of recipient", e);
         }
@@ -125,6 +127,7 @@ public abstract class EncryptionProcessor {
         // build data package
         
         dataPackage.setSensorUri(sensorUriPseudonym);
+        dataPackage.setContentFormat((int)contentFormat);
         dataPackage.setSymmetricEncryptionAlgorithmCode(symmetricAlgorithmCode);
         dataPackage.setEncryptedContent(ciphertextStr);
         dataPackage.setInitializationVector(initializationVectorStr);

@@ -5,8 +5,6 @@ import java.security.PublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
-import org.apache.commons.codec.EncoderException;
-
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.symmetric.aes.AESCipherer;
@@ -60,6 +58,14 @@ public class EncryptionParameters {
     	this.asymmetricEncryptionAlgorithm = getAsymmetricEncryptionAlgorithmByPublicKey(publicKey);
     	this.asymmetricEncryptionKeyBitStrength = getAsymmetricEncryptionBitStrengthByPublicKey(publicKey);
     }
+    
+    public EncryptionParameters(String symmetricEncryptionAlgorithmCode,
+	            				PrivateKey privateKey) throws EncryptionException {
+		setSymmetricParameters(symmetricEncryptionAlgorithmCode);
+		
+		this.asymmetricEncryptionAlgorithm = getAsymmetricEncryptionAlgorithmByPrivateKey(privateKey);
+		this.asymmetricEncryptionKeyBitStrength = getAsymmetricEncryptionBitStrengthByPrivateKey(privateKey);
+	}
 
     public String getSymmetricEncryptionAlgorithm() {
         return symmetricEncryptionAlgorithm;

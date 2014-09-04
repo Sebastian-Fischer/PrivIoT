@@ -34,10 +34,7 @@ import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
 
 import org.apache.commons.codec.binary.Base64;
-import org.w3c.dom.DOMException;
-import org.xml.sax.SAXException;
 
-import de.uniluebeck.itm.priviot.utils.data.DataPackageParsingException;
 import de.uniluebeck.itm.priviot.utils.data.EncryptionAlgorithmCodes;
 import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
 import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageMarshaller;
@@ -46,7 +43,6 @@ import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionHelper;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.AsymmetricCipherer;
-import de.uniluebeck.itm.priviot.utils.encryption.cipher.CiphererFactory;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.SymmetricCipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.asymmetric.elgamal.ElgamalCipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
@@ -142,6 +138,7 @@ public class TestMain {
         
         PrivacyDataPackage dataPackage = new PrivacyDataPackage();
         dataPackage.setSensorUri(sensorUri);
+        dataPackage.setContentFormat(20);
         dataPackage.setSymmetricEncryptionAlgorithmCode(encryptionAlgorithmCode);
         dataPackage.setEncryptedContent(Base64.encodeBase64String(content));
         dataPackage.setInitializationVector(Base64.encodeBase64String(iv));
@@ -177,6 +174,7 @@ public class TestMain {
         printDataPackage(dataPackage2);
         
         if (dataPackage.getSensorUri().equals(dataPackage2.getSensorUri()) &&
+            dataPackage.getContentFormat() == dataPackage2.getContentFormat() &&
             dataPackage.getSymmetricEncryptionAlgorithmCode().equals(dataPackage2.getSymmetricEncryptionAlgorithmCode()) &&
             dataPackage.getEncryptedContent().equals(dataPackage2.getEncryptedContent()) &&
             dataPackage.getInitializationVector().equals(dataPackage2.getInitializationVector()) &&
@@ -456,6 +454,7 @@ public class TestMain {
     private static boolean testEncryptionProcessor() {
     	String content = "plaintextplaintextplaintextplaintextplaintextplaintextplaintextplaintextplaintext";
     	String sensorUri = "www.sensor.com/sensor1";
+    	long contentFormat = 201;
     	String symmetricEncryptionAlgorithmCode = EncryptionAlgorithmCodes.AES_256_CBC;
     	String certificatePathStr = "src/main/resources/test.cert";
     	String privateKeyPathStr = "src/main/resources/test_private_key.der";
@@ -512,10 +511,11 @@ public class TestMain {
     	
     	PrivacyDataPackage dataPackage;
     	try {
-    		dataPackage = EncryptionProcessor.createPrivacyDataPackage(content, 
-                                                                       sensorUriPseudonym, 
+    		dataPackage = EncryptionProcessor.createPrivacyDataPackage(content,
+                                                                       sensorUriPseudonym,
+                                                                       contentFormat,
                                                                        encryptionParameters, 
-                                                                       publicKey.getEncoded());
+                                                                       publicKey);
 		} catch (EncryptionException e) {
 			System.out.println(e.getMessage());
 			return false;
@@ -611,15 +611,6 @@ public class TestMain {
             return  new AESCipherer();
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             System.out.println("Exception during construct in AES test: " + e.getMessage());
-            return null;
-        }
-    }
-    
-    private static AsymmetricCipherer createRSACipherer() {
-        try {
-            return  new RSACipherer();
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            System.out.println("Exception during construct in RSA test: " + e.getMessage());
             return null;
         }
     }
