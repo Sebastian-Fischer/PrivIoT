@@ -33,6 +33,8 @@ public class HttpClientHandler extends SimpleChannelHandler {
 			byte[] payload = new byte[response.getContent().readableBytes()];
 			response.getContent().getBytes(0, payload);
 			
+			log.debug("received:\n" + new String(payload));
+			
 			ByteArrayInputStream playloadStream = new ByteArrayInputStream(payload);
 			
 			ResultsFormat format = getJenaFormatByHttpContentType(response.headers().get("Content-Type"));
@@ -44,9 +46,14 @@ public class HttpClientHandler extends SimpleChannelHandler {
 			log.debug("parse result in format " + format);
 			
 			ResultSet r = ResultSetFactory.load(playloadStream, format);
+			int entries = 0;
 		    while ( r.hasNext() ) {
 		      QuerySolution soln = r.next();
 		      log.info("Received new Status: " + soln);
+		      entries++;
+		    }
+		    if (entries == 0) {
+		    	log.info("Received message contains no result sets");
 		    }
 		}
 	}

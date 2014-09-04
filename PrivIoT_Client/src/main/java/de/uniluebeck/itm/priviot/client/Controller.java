@@ -100,12 +100,16 @@ public class Controller {
 		worker = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				// minimum time in milliseconds until previous and next update time
-				long minTimeDifference = 10000;
+				// minimum time in milliseconds since previous update time
+				// During this time the sensor data has to come from CoAP-Webserver to SSP's database
+				long minTimeDifferencePrevious = 5000;
+				// minimum time in milliseconds until next update time
+				// During this time the request has to be answered by the SSP
+				long minTimeDifferenceNext = 1000;
 				
 				log.debug("sensor update interval is " + sensorUpdateInterval + " seconds");
 				
-				sleepUntilInTimeWindow(sensorUpdateInterval * 1000, minTimeDifference);
+				sleepUntilInTimeWindow(sensorUpdateInterval * 1000, minTimeDifferencePrevious, minTimeDifferenceNext);
 				
 				log.info("Start requesting status");
 				
@@ -228,22 +232,29 @@ public class Controller {
 	 * (sensorUpdateIntervalMilli + minTimeDifference, sensorUpdateIntervalMilli - minTimeDifference).
 	 * @param sensorUpdateIntervalMilli  The time interval in milliseconds,
 	 *                                   in which new sensor data is published and the pseudonym changes.
-	 * @param minTimeDifference          The minimum time in milliseconds until previous and next update time.
+	 * @param minTimeDifferencePrevoius  The minimum time in milliseconds since previous update time.
+	 * @param minTimeDifferenceNext      The minimum time in milliseconds until next update time.
 	 */
-	private void sleepUntilInTimeWindow(long sensorUpdateIntervalMilli, long minTimeDifference) {
+	private void sleepUntilInTimeWindow(long sensorUpdateIntervalMilli, long minTimeDifferencePrevoius, long minTimeDifferenceNext) {
 		// find good start point
 		long modulo = (new Date()).getTime() % (sensorUpdateIntervalMilli);
 		
-		// sleep until we are 0 to maxTimeDifference milliseconds after the actual sensor update time
+		Date lastUpdate = new Date((new Date()).getTime() - modulo);
+		Date nextUpdate = new Date((new Date()).getTime() - modulo + sensorUpdateIntervalMilli);
+		
+		// sleep until we are 0 to minTimeDifferencePrevoius milliseconds after the actual sensor update time
 		// and maxTimeDifference before the next sensor update time
 		long sleepTime = 0;
-		if (modulo < minTimeDifference) {
-			sleepTime = minTimeDifference - modulo;
-			log.info(modulo + " seconds after last update time. Sleep " + sleepTime + " milliseconds");
+		if (modulo < minTimeDifferencePrevoius) {
+			sleepTime = minTimeDifferencePrevoius - modulo;
+			log.info(modulo + " seconds after last update time (" + lastUpdate + "). Sleep " + sleepTime + " milliseconds");
 		}
-		else if (modulo > sensorUpdateIntervalMilli - minTimeDifference) {
-			sleepTime = sensorUpdateIntervalMilli + minTimeDifference - modulo;
-			log.info((sensorUpdateIntervalMilli - modulo) + " before next update time. Sleep " + sleepTime + " milliseconds");
+		else if (modulo > sensorUpdateIntervalMilli - minTimeDifferenceNext) {
+			sleepTime = sensorUpdateIntervalMilli + minTimeDifferenceNext - modulo;
+			log.info((sensorUpdateIntervalMilli - modulo) + " before next update time (" + nextUpdate + "). Sleep " + sleepTime + " milliseconds");
+		}
+		else {
+			log.info("next update time is " + nextUpdate);
 		}
 		if (sleepTime > 0) {
 			try {
