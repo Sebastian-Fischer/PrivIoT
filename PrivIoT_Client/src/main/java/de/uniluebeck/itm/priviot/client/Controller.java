@@ -2,11 +2,11 @@ package de.uniluebeck.itm.priviot.client;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.Map.Entry;
+import java.util.List;
 import java.util.concurrent.Executors;
 
+import org.apache.commons.configuration.Configuration;
 import org.apache.log4j.Logger;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -21,8 +21,6 @@ import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpVersion;
-import org.jboss.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
-import org.jboss.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import org.jboss.netty.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
 
 import de.uniluebeck.itm.priviot.utils.PseudonymizationProcessor;
@@ -33,9 +31,9 @@ import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationExceptio
  */
 public class Controller {
 	
-	private static final String PSEUDONYM_URI = "http://www.pseudonym.com/";
-	
 	private Logger log = Logger.getLogger(this.getClass().getName());
+	
+	private String pseudonymUri;
 	
 	private String sensorUri;
 	private byte[] sensorSecret;
@@ -60,14 +58,22 @@ public class Controller {
 	 * @param sspHttpUri
 	 * @param sspHttpPort
 	 */
-	public Controller(String sensorUri, byte[] sensorSecret, int sensorUpdateInterval, String sspHttpHost, String sspHttpRequestPath, int sspHttpPort) {
-		this.sensorUri = sensorUri;
-		this.sensorSecret = sensorSecret;
-		this.sensorUpdateInterval = sensorUpdateInterval;
-		this.sspHttpHost = sspHttpHost;
-		this.sspHttpRequestPath = sspHttpRequestPath;
+	public Controller(Configuration config) {
+		this.pseudonymUri = config.getString("pseudonymuri");
 		
-		log.info("Observing the sensor " + sensorUri);
+		this.sspHttpHost = config.getString("ssp.host");
+		this.sspHttpRequestPath = config.getString("ssp.path");
+		int sspHttpPort = config.getInt("ssp.port");
+		
+		this.sensorUri = config.getString("sensor.uri");
+		this.sensorUpdateInterval = config.getInt("sensor.updatefrequency");
+		List<Object> secretObj = config.getList("sensor.secret");
+		this.sensorSecret = new byte[secretObj.size()];
+		for (int b = 0; b < secretObj.size(); b++) {
+			this.sensorSecret[b] = Byte.valueOf((String)secretObj.get(b));
+		}
+		
+		log.info("Observing the sensor " + sensorUri + " with updateInterval " + sensorUpdateInterval);
 		
 		// setup HTTP client
 		ChannelFactory factory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(),
@@ -80,18 +86,14 @@ public class Controller {
         bootstrap.setOption("tcpNoDelay", true);
 	    bootstrap.setOption("keepAlive", true);
 	    
-	    log.info("Connect HTTP client to " + sspHttpHost + ", port " + sspHttpPort);
-	    
 	    address = new InetSocketAddress(sspHttpHost, sspHttpPort);
-	    log.info("address: " + address.getAddress());
+	    
 	    if (address.isUnresolved()) {
-	    	log.info("unresolved");
+	    	log.error("Inet address of ssp is unresolved: " + sspHttpHost + ":" + sspHttpPort);
 	    }
 	    else {
-	    	log.info("resolved");
+	    	log.info("Inet address of ssp is: " + sspHttpHost + ":" + sspHttpPort);
 	    }
-	    
-	    
 	}
 	
 	/**
@@ -107,8 +109,6 @@ public class Controller {
 				// minimum time in milliseconds until next update time
 				// During this time the request has to be answered by the SSP
 				long minTimeDifferenceNext = 1000;
-				
-				log.debug("sensor update interval is " + sensorUpdateInterval + " seconds");
 				
 				sleepUntilInTimeWindow(sensorUpdateInterval * 1000, minTimeDifferencePrevious, minTimeDifferenceNext);
 				
@@ -129,9 +129,8 @@ public class Controller {
 					    
 						requestStatus();
 						
-					} catch (ErrorDataEncoderException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
+					} catch (ErrorDataEncoderException e) {
+						log.error("Error during requestStatus", e);
 					}
 					
 					try {
@@ -182,7 +181,7 @@ public class Controller {
 		final String BOUNDARY = "---------------------------21018220672108554064107170109";
 		
 		// create actual pseudonym
-		String pseudonym = PSEUDONYM_URI;
+		String pseudonym = pseudonymUri;
 		try {
 			pseudonym += PseudonymizationProcessor.generateHmac256Pseudonym(sensorUri, sensorUpdateInterval, sensorSecret);
 		} catch (PseudonymizationException e) {
@@ -212,7 +211,7 @@ public class Controller {
         
         request.headers().set(HttpHeaders.Names.CONTENT_LENGTH, channelBuffer.readableBytes());
         
-        log.debug("send sparql message to " + sspHttpHost + "/" + sspHttpRequestPath);
+        log.debug("send sparql message to " + sspHttpHost + sspHttpRequestPath);
         
     	connector.write(request);
 	}
