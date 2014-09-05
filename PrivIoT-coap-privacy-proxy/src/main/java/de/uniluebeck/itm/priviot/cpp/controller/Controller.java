@@ -10,6 +10,7 @@ import java.util.List;
 import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
 
+import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +39,8 @@ import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
 public class Controller implements CoapRegistryWebserviceListener,
         CoapObserverListener {
     
-    /** Root path of forwarding webservices. The concrete webservices are /forwarding/1, /forwarding/2 */
-    private final static String PATH_FORWARDING = "/forwarding/";
+    /** Root path of forwarding webservices. The concrete webservices are <basePathForwarding>/1, <basePathForwarding>/2 */
+    private  String basePathForwarding;
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
@@ -79,10 +80,12 @@ public class Controller implements CoapRegistryWebserviceListener,
     private int portWebserver;
     
     
-    public Controller(int ownPortWebservers, int ownPortSSPs, int portSSP, int portWebserver) {
-        super();
-        this.portSSP = portSSP;
-        this.portWebserver = portWebserver;
+    public Controller(Configuration config) {
+        this.basePathForwarding = config.getString("forwadingpath");
+        int ownPortSSPs = config.getInt("port.ownssp");
+        int ownPortWebservers = config.getInt("port.owncoapwebserver");
+        this.portSSP = config.getInt("port.ssp");
+        this.portWebserver = config.getInt("port.coapwebserver");
         
         log.info("Open CoAP interface for webservers on port " + ownPortWebservers);
         log.info("Open CoAP interface for Smart Service Proxies on port " + ownPortSSPs);
@@ -128,7 +131,7 @@ public class Controller implements CoapRegistryWebserviceListener,
         }
         
         // create and start a CoapForwardingWebservice for this web service
-        String path = PATH_FORWARDING + coapForwardingWebservices.size() + 1;
+        String path = basePathForwarding + coapForwardingWebservices.size() + 1;
         CoapForwardingWebservice coapForwardingWebservice = new CoapForwardingWebservice(path);
         coapServerApplicationSSPs.registerService(coapForwardingWebservice);
         log.info("Registered new forwarding webservice: " + coapForwardingWebservice.getPath());
