@@ -20,8 +20,11 @@ import de.uniluebeck.itm.priviot.cpp.communication.CoapClient;
  * using the CoapClient.
  */
 public class CoapRegisterClient {
+	
+	private static String QUERY_ADD = "add=";
+	private static String QUERY_REMOVE = "remove=";
     
-    private static String urlPathRegistry = "/registry";
+    private String urlPathRegistry;
     
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
@@ -36,22 +39,55 @@ public class CoapRegisterClient {
      * @param coapClientApplication  The CoapClientApplication object
      * @param urlSSP   The host url of the Smart Service Proxy
      */
-    public CoapRegisterClient(CoapClientApplication coapClientApplication, int portSSP) {
+    public CoapRegisterClient(CoapClientApplication coapClientApplication, int portSSP, String urlPathRegistry) {
         this.coapClientApplication = coapClientApplication;
         this.portSSP = portSSP;
+        this.urlPathRegistry = urlPathRegistry;
     }
     
     /**
      * Sends the registration request to the Smart Service Proxy.
+     * Registers the whole webserver with all it's webservices.
      * The proxy will react with a registration as observer to the available webservices.
      * @throws URISyntaxException
      * @throws UnknownHostException
      */
-    public void sendRegisterRequest(String hostNameSSP) throws URISyntaxException, UnknownHostException {
-        // Create CoAP request
-        URI uriSSP = new URI ("coap", null, hostNameSSP, portSSP, urlPathRegistry, "", null);
-        
-        MessageType.Name messageType = MessageType.Name.CON;
+    public void registerWebserver(String hostNameSSP) throws URISyntaxException, UnknownHostException {
+    	sendPostRequestToSSP(hostNameSSP, "");
+    }
+    
+    /**
+     * Sends a registration request to the Smart Service Proxy.
+     * Registers only the webservice given by pathWebservice.
+     * @param hostNameSSP
+     * @param pathWebservice
+     * @throws URISyntaxException
+     * @throws UnknownHostException
+     */
+    public void registerWebservice(String hostNameSSP, String pathWebservice) throws URISyntaxException, UnknownHostException {
+    	String query =  QUERY_ADD + pathWebservice;
+    			
+    	sendPostRequestToSSP(hostNameSSP, query);
+    }
+    
+    /**
+     * Sends an unregistration request to the Smart Service Proxy.
+     * Unregisters only the webservice given by pathWebservice.
+     * @param hostNameSSP
+     * @param pathWebservice
+     * @throws URISyntaxException
+     * @throws UnknownHostException
+     */
+    public void unregisterWebservice(String hostNameSSP, String pathWebservice) throws URISyntaxException, UnknownHostException {
+    	String query =  QUERY_REMOVE + pathWebservice;
+    			
+    	sendPostRequestToSSP(hostNameSSP, query);
+    }
+    
+    private void sendPostRequestToSSP(String hostNameSSP, String query) throws URISyntaxException, UnknownHostException {
+    	URI uriSSP = new URI ("coap", null, hostNameSSP, portSSP, urlPathRegistry, query, null);
+    	
+    	MessageType.Name messageType = MessageType.Name.CON;
         
         CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.POST, uriSSP, false);
         

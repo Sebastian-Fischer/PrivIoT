@@ -3,6 +3,7 @@ package de.uniluebeck.itm.priviot.cpp.communication.coapwebserver;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 
 import org.slf4j.Logger;
@@ -75,7 +76,7 @@ public class CoapObserver {
         
         coapClient.addListener(new CoapClientListener() {
             @Override
-            public void receivedResponse(URI enpoint, CoapResponse response) {
+            public void receivedResponse(URI endpoint, CoapResponse response) {
                 if (!response.getMessageCodeName().equals(MessageCode.Name.CONTENT_205)) {
                     log.error("Wrong behavior of webservice. Received message with code " + response.getMessageCodeName());
                     return;
@@ -85,9 +86,8 @@ public class CoapObserver {
                     // empty status
                     return;
                 }
-                
                 if (listener != null) {
-                    listener.receivedActualStatus(enpoint, response.getContentFormat(), response.getContent(), response.getMaxAge());
+                    listener.receivedActualStatus(endpoint, response.getContentFormat(), response.getContent(), response.getMaxAge());
                 }
             }
         });

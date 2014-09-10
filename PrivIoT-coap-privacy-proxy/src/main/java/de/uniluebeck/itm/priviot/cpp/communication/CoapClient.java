@@ -117,6 +117,10 @@ public class CoapClient implements CoapResponseProcessor, TransmissionInformatio
         int value = responseCounter.incrementAndGet();
         log.debug("Received #{}: {}", value, coapResponse);
         
+        byte[] coapPayload = new byte[coapResponse.getContent().readableBytes()];
+        coapResponse.getContent().toByteBuffer().get(coapPayload, coapResponse.getContent().readerIndex(), coapResponse.getContent().readableBytes());
+        log.debug("Content: " + new String(coapPayload));
+        
         if (listener != null) {
             listener.receivedResponse(recipient, coapResponse);
         }

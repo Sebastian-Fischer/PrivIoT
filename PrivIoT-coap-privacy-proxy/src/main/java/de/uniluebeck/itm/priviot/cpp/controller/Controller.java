@@ -1,6 +1,8 @@
 package de.uniluebeck.itm.priviot.cpp.controller;
 
 import java.io.ByteArrayInputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
@@ -17,6 +19,11 @@ import org.slf4j.LoggerFactory;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.message.MessageCode;
+import de.uniluebeck.itm.ncoap.message.MessageType;
+import de.uniluebeck.itm.priviot.cpp.communication.CoapClient;
 import de.uniluebeck.itm.priviot.cpp.communication.coapwebserver.CoapObserver;
 import de.uniluebeck.itm.priviot.cpp.communication.coapwebserver.CoapObserverListener;
 import de.uniluebeck.itm.priviot.cpp.communication.coapwebserver.CoapRegistryWebservice;
@@ -79,6 +86,9 @@ public class Controller implements CoapRegistryWebserviceListener,
     /** port of the CoAP Webserver */
     private int portWebserver;
     
+    /** The path of the SSP's url, where new webservers are registered */
+    private String urlPathSSPRegistry;
+    
     
     public Controller(Configuration config) {
         this.basePathForwarding = config.getString("forwadingpath");
@@ -86,6 +96,7 @@ public class Controller implements CoapRegistryWebserviceListener,
         int ownPortWebservers = config.getInt("port.owncoapwebserver");
         this.portSSP = config.getInt("port.ssp");
         this.portWebserver = config.getInt("port.coapwebserver");
+        this.urlPathSSPRegistry = config.getString("ssp.registry");
         
         log.info("Open CoAP interface for webservers on port " + ownPortWebservers);
         log.info("Open CoAP interface for Smart Service Proxies on port " + ownPortSSPs);
@@ -108,7 +119,7 @@ public class Controller implements CoapRegistryWebserviceListener,
         
         log.info("CoapRegistryWebservice started");
         
-        coapRegisterClient = new CoapRegisterClient(coapClientApplication, portSSP);
+        coapRegisterClient = new CoapRegisterClient(coapClientApplication, portSSP, urlPathSSPRegistry);
         
         coapForwardingWebservices = new ArrayList<CoapForwardingWebservice>();
     }
@@ -121,7 +132,9 @@ public class Controller implements CoapRegistryWebserviceListener,
     }
     
     @Override
-    public void registeredNewWebservice(URI uriWebservice) {
+    public synchronized void registeredNewWebservice(URI uriWebservice) {
+    	// synchronized is needed because of the coapForwardingWebservices counter that is part of String path.
+    	
         log.info("Registered new webservice " + uriWebservice.getHost() + uriWebservice.getPath() + ". send observe request.");
         
         RegistryEntry registryEntry = registry.getEntryByWebservice(uriWebservice);
@@ -131,8 +144,9 @@ public class Controller implements CoapRegistryWebserviceListener,
         }
         
         // create and start a CoapForwardingWebservice for this web service
-        String path = basePathForwarding + coapForwardingWebservices.size() + 1;
+        String path = basePathForwarding + (coapForwardingWebservices.size() + 1);
         CoapForwardingWebservice coapForwardingWebservice = new CoapForwardingWebservice(path);
+        coapForwardingWebservices.add(coapForwardingWebservice);
         coapServerApplicationSSPs.registerService(coapForwardingWebservice);
         log.info("Registered new forwarding webservice: " + coapForwardingWebservice.getPath());
         
@@ -146,15 +160,14 @@ public class Controller implements CoapRegistryWebserviceListener,
             return;
         }
         
-        // send registration to Smart Service Proxy
-        // The proxy will then register itself as observer at the CoapForwardingWebservice
+        // send registration of coapForwardingWebservice to Smart Service Proxy
         try {
-            coapRegisterClient.sendRegisterRequest(registryEntry.getSSP().getHost());
+            coapRegisterClient.registerWebservice(registryEntry.getSSP().getHost(), coapForwardingWebservice.getPath());
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Registration at Smart Service Proxy failed", e);
         }
     }
-
+    
     @Override
     public void receivedActualStatus(final URI uriWebservice, long contentFormat,
             final ChannelBuffer content, long contentLifetime) {        

@@ -4,6 +4,9 @@ import java.net.URI;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+
 /**
  * A CoapObserverListener receives events from the {@link CoapObserver}
  */
