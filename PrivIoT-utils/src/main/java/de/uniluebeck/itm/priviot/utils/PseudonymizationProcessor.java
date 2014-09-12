@@ -50,7 +50,7 @@ public class PseudonymizationProcessor {
 	 */
 	public static String generateHmac256Pseudonym(String original, int timePeriod, byte[] secret) throws PseudonymizationException {
 		if (original.isEmpty() || timePeriod == 0 || secret.length == 0) {
-			throw new PseudonymizationException("Bad input");
+			throw new PseudonymizationException("Bad input. original length " + original.length() + ", timePeriod " + timePeriod + ", secret length " + secret.length);
 		}
 		
 		Date actDate = new Date();
@@ -59,7 +59,7 @@ public class PseudonymizationProcessor {
 		// milliseconds since last update time
 		long modulo = milliseconds % (timePeriod*1000);
 		// seconds since January 1, 1970 at the last update time
-		int roundedSeconds = (int)(milliseconds - modulo);
+		long roundedSeconds = milliseconds - modulo;
 		
 		// concatenate
 		String plaintext = original + roundedSeconds;
