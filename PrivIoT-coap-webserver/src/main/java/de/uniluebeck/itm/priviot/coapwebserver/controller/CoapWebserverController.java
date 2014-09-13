@@ -48,6 +48,7 @@ import de.uniluebeck.itm.priviot.utils.PseudonymizationProcessor;
 import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.symmetric.aes.AESCipherer;
+import de.uniluebeck.itm.priviot.utils.pseudonymization.Secret;
 import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationException;
 
 /**
@@ -83,6 +84,9 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     
     /** default frequency in which new values are published by the sensor in seconds */
     private int sensorDefaultUpdateFrequency;
+    
+    /** Maximum changing in one random step of the sensor values langitude and latitude */
+    private double maxChange;
     
     /** Listens to a local port. Web servers can be registered here. */
     private CoapServerApplication coapServerApplication;
@@ -123,6 +127,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     	pseudonymUriHost = config.getString("pseudonymuri");
     	numberOfSensors = config.getInt("sensor.count");
     	sensorDefaultUpdateFrequency = config.getInt("sensor.updatefrequency");
+    	maxChange = config.getDouble("sensor.maxchange");
     	int ownPort = config.getInt("port");
     	String urlSSP = config.getString("ssp.host");
     	int portSSP = config.getInt("ssp.port");
@@ -185,11 +190,8 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         	// if there is a special secret given in config take that one
         	byte[] secret;
         	try {
-        		List<Object> secretObj = config.getList("sensor" + i + ".secret");
-        		secret = new byte[secretObj.size()];
-        		for (int b = 0; b < secretObj.size(); b++) {
-        			secret[b] = Byte.valueOf((String)secretObj.get(b));
-        		}
+        		String secretBase64 = config.getString("sensor" + i + ".secret");
+        		secret = Secret.decodeBase64Secret(secretBase64);
         		log.debug("initialize sensor " + sensorPath + " with special secret");
         	}
         	catch (Exception e) {
@@ -202,8 +204,28 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     			}
         	}
         	
+        	double startLatitude;
+        	try {
+        		startLatitude = config.getDouble("sensor" + i + ".latitude");
+        	}
+        	catch (Exception e) {
+        		log.info("no config value found for sensor" + i + ".latitude. Take default value.");
+        		startLatitude = 10.6802434;
+        	}
+        	
+        	double startLongitude;
+        	try {
+        		startLongitude = config.getDouble("sensor" + i + ".longitude");
+        	}
+        	catch (Exception e) {
+        		log.info("no config value found for sensor" + i + ".longitude. Take default value.");
+        		startLongitude = 53.8686906;
+        	}
+        	
 	        // create and initialize a GeographicSensor and it's Webservice
-	        GeographicSensor sensor = new GeographicSensor(sensorPath, updateFrequency, executorService);
+	        GeographicSensor sensor = new GeographicSensor(sensorPath, updateFrequency, 
+	        		                                       startLongitude, startLatitude, 
+	        		                                       maxChange, executorService);
 	        sensor.setSecret(secret);
 	        sensor.addObserver(this);
 	        
@@ -315,7 +337,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     	model.add(resSensorPosition, RDF.type, resPoint);
     	
     	// add literal
-    	String wktLiteralValue = WktLiteral.toValueString(sensorData.getLongitude(), sensorData.getLatitude());
+    	String wktLiteralValue = WktLiteral.toValueString(sensorData.getLatitude(), sensorData.getLongitude());
     	resSensorPosition.addLiteral(propWKT, ResourceFactory.createTypedLiteral(wktLiteralValue, WktLiteral.getInstance()));
     }
     

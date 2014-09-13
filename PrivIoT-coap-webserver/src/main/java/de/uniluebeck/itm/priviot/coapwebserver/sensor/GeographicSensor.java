@@ -24,20 +24,23 @@ public class GeographicSensor extends Sensor {
 	 * @param updateFrequency The frequency in seconds in which new values are created and published
 	 * @param executorService Used to execute the changing and publishing of the sensor value 
 	 */
-	public GeographicSensor(String sensorURI, int updateFrequency, ScheduledExecutorService executorService) {
+	public GeographicSensor(String sensorURI, int updateFrequency, 
+			                double startLongitude, double startLatitude,
+			                double maxChange, ScheduledExecutorService executorService) {
 		setScheduledExecutorService(executorService);
 		setSensorUriPath(sensorURI);
 		setUpdateFrequency(updateFrequency);
 		
-		this.longitude = 53.8686906;
-		this.latitude = 10.6802434;
-		this.maxChange = 0.001;
+		this.longitude = startLongitude;
+		this.latitude = startLatitude;
+		this.maxChange = maxChange;
 	}
 	
 	@Override
 	protected void getAndPublishSensorData() {
-		longitude += Math.random() * maxChange;
-		latitude += Math.random() * maxChange;
+		// add a random number between -maxChange and maxChange
+		longitude += (Math.random() * 2*maxChange) - maxChange;
+		latitude += (Math.random() * 2*maxChange) - maxChange;
 		
 		GeographicSensorData sensorData = new GeographicSensorData(getSensorUriPath(), longitude, latitude);
 		sensorData.setLifetime(getUpdateFrequency());
