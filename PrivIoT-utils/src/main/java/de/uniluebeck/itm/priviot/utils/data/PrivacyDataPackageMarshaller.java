@@ -37,7 +37,7 @@ public class PrivacyDataPackageMarshaller {
         }
     }
 
-    public static void marshal(PrivacyDataPackage privacyDataPackage, OutputStream outputStream)
+    public static synchronized void marshal(final PrivacyDataPackage privacyDataPackage, OutputStream outputStream)
             throws JAXBException, XMLStreamException {
 
         XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();

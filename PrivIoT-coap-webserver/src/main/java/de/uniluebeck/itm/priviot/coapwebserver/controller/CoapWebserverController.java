@@ -8,7 +8,6 @@ import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
@@ -98,12 +97,12 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     private CoapRegisterClient coapRegisterClient;
     
     /** One observable webservice for each sensor */
-    private List<CoapSensorWebservice> coapSensorWebservices;
+    private volatile List<CoapSensorWebservice> coapSensorWebservices;
     
     /** Sensors that are linked with a CoapSensorWebservice */
-    private List<Sensor> sensors;
+    private volatile List<Sensor> sensors;
     
-    /** Stores public keys of Smart Service Proxies */
+    /** Stores public keys of Smart Service Proxies. Methods are thread safe */
     private KeyDatabase keyDatabase;
     
     /** Parameters for encryption (used algorithms and keysizes) */
@@ -173,60 +172,8 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         ScheduledThreadPoolExecutor executorService = new ScheduledThreadPoolExecutor(numberOfThreads, threadFactory);
         
         for (int i = 1; i <= numberOfSensors; i++) {
-        	String sensorPath = sensorBasePath + String.valueOf(i);
+        	Sensor sensor = createGeographicalSensor(i, executorService);
         	
-        	log.info("initialize sensor: " + sensorPath);
-        	
-        	// if there is a special updateFrequency given in config take that one
-        	int updateFrequency;
-        	try {
-        		updateFrequency = config.getInt("sensor" + i + ".updateFrequency");
-        		log.debug("initialize sensor " + sensorPath + " with special updateFrequency " + updateFrequency);
-        	}
-        	catch (Exception e) {
-        		updateFrequency = sensorDefaultUpdateFrequency;
-        	}
-        	
-        	// if there is a special secret given in config take that one
-        	byte[] secret;
-        	try {
-        		String secretBase64 = config.getString("sensor" + i + ".secret");
-        		secret = Secret.decodeBase64Secret(secretBase64);
-        		log.debug("initialize sensor " + sensorPath + " with special secret");
-        	}
-        	catch (Exception e) {
-        		// if no special secret, create one (default behavior)
-        		try {
-    				secret = PseudonymizationProcessor.generateHmac256Secret();
-    			} catch (PseudonymizationException e1) {
-    				log.error("Error while generating secret for sensor" + i, e1);
-    				return;
-    			}
-        	}
-        	
-        	double startLatitude;
-        	try {
-        		startLatitude = config.getDouble("sensor" + i + ".latitude");
-        	}
-        	catch (Exception e) {
-        		log.info("no config value found for sensor" + i + ".latitude. Take default value.");
-        		startLatitude = 10.6802434;
-        	}
-        	
-        	double startLongitude;
-        	try {
-        		startLongitude = config.getDouble("sensor" + i + ".longitude");
-        	}
-        	catch (Exception e) {
-        		log.info("no config value found for sensor" + i + ".longitude. Take default value.");
-        		startLongitude = 53.8686906;
-        	}
-        	
-	        // create and initialize a GeographicSensor and it's Webservice
-	        GeographicSensor sensor = new GeographicSensor(sensorPath, updateFrequency, 
-	        		                                       startLongitude, startLatitude, 
-	        		                                       maxChange, executorService);
-	        sensor.setSecret(secret);
 	        sensor.addObserver(this);
 	        
 	        // create a webservice for the sensor
@@ -240,6 +187,73 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
 	        
 	        sensor.start(5);
         }
+    }
+    
+    private Sensor createGeographicalSensor(int index, ScheduledThreadPoolExecutor executorService) {
+    	String sensorPath = sensorBasePath + String.valueOf(index);
+    	
+    	log.info("initialize sensor: " + sensorPath);
+    	
+    	// if there is a special updateFrequency given in config take that one
+    	int updateFrequency;
+    	try {
+    		updateFrequency = config.getInt("sensor" + index + ".updateFrequency");
+    		log.debug("initialize sensor " + sensorPath + " with special updateFrequency " + updateFrequency);
+    	}
+    	catch (Exception e) {
+    		log.debug("no updatefrequency given for " + sensorPath + ". Use default value.");
+    		updateFrequency = sensorDefaultUpdateFrequency;
+    	}
+    	
+    	// if there is a special secret given in config take that one
+    	byte[] secret = null;
+    	try {
+    		String secretBase64 = config.getString("sensor" + index + ".secret");
+    		if (!secretBase64.isEmpty()) {
+    			secret = Secret.decodeBase64Secret(secretBase64);
+        		log.debug("initialize sensor " + sensorPath + " with special secret");
+    		}
+    	}
+    	catch (Exception e) {
+    	}
+    	if (secret == null) {
+    		log.debug("no special secret given for " + sensorPath + ". Generate new random secret.");
+    		// if no special secret, create one (default behavior)
+    		try {
+				secret = PseudonymizationProcessor.generateHmac256Secret();
+			} catch (PseudonymizationException e1) {
+				log.error("Error while generating secret for " + sensorPath, e1);
+				return null;
+			}
+    	}
+    	
+    	double startLatitude;
+    	try {
+    		startLatitude = config.getDouble("sensor" + index + ".latitude");
+    		log.debug("initialize " + sensorPath + " at latitude " + startLatitude);
+    	}
+    	catch (Exception e) {
+    		log.debug("no latitude value given for " + sensorPath + ". Use default value.");
+    		startLatitude = 10.6802434;
+    	}
+    	
+    	double startLongitude;
+    	try {
+    		startLongitude = config.getDouble("sensor" + index + ".longitude");
+    		log.info("initialize " + sensorPath + " at longitude " + startLongitude);
+    	}
+    	catch (Exception e) {
+    		log.debug("no longitude value given for " + sensorPath + ". use default value.");
+    		startLongitude = 53.8686906;
+    	}
+    	
+        // create and initialize a GeographicSensor and it's Webservice
+        GeographicSensor sensor = new GeographicSensor(sensorPath, updateFrequency, 
+        		                                       startLongitude, startLatitude, 
+        		                                       maxChange, executorService);
+        sensor.setSecret(secret);
+        
+        return sensor;
     }
 
     /**
