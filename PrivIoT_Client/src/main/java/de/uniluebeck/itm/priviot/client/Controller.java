@@ -25,6 +25,7 @@ import org.jboss.netty.handler.codec.http.multipart.HttpPostRequestEncoder.Error
 
 import de.uniluebeck.itm.priviot.utils.PseudonymizationProcessor;
 import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationException;
+import de.uniluebeck.itm.priviot.utils.pseudonymization.Secret;
 
 /**
  * Controls the work of the Client.
@@ -67,11 +68,8 @@ public class Controller {
 		
 		this.sensorUri = config.getString("sensor.uri");
 		this.sensorUpdateInterval = config.getInt("sensor.updatefrequency");
-		List<Object> secretObj = config.getList("sensor.secret");
-		this.sensorSecret = new byte[secretObj.size()];
-		for (int b = 0; b < secretObj.size(); b++) {
-			this.sensorSecret[b] = Byte.valueOf((String)secretObj.get(b));
-		}
+		String secretBase64 = config.getString("sensor.secret");
+		this.sensorSecret = Secret.decodeBase64Secret(secretBase64);
 		
 		log.info("Observing the sensor " + sensorUri + " with updateInterval " + sensorUpdateInterval);
 		
