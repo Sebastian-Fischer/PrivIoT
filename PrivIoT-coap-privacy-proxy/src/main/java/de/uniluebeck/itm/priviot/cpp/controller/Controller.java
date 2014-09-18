@@ -160,12 +160,7 @@ public class Controller implements CoapRegistryWebserviceListener,
             return;
         }
         
-        // send registration of coapForwardingWebservice to Smart Service Proxy
-        try {
-            coapRegisterClient.registerWebservice(registryEntry.getSSP().getHost(), coapForwardingWebservice.getPath());
-        } catch (UnknownHostException | URISyntaxException e) {
-            log.error("Registration at Smart Service Proxy failed", e);
-        }
+        // registration of forwarding web service to SSP is done when the first data is received
     }
     
     @Override
@@ -183,11 +178,11 @@ public class Controller implements CoapRegistryWebserviceListener,
                   "' to SSP '" + uriSSP.getHost() + ":" + uriSSP.getPort() + "'");
         
         // convert content from ChannelBuffer to InputStream
-        byte[] coapPayload = new byte[content.readableBytes()];
+        final byte[] coapPayload = new byte[content.readableBytes()];
         content.toByteBuffer().get(coapPayload, content.readerIndex(), content.readableBytes());
         final ByteArrayInputStream inStream = new ByteArrayInputStream(coapPayload);
         
-        log.debug("content:\n" + new String(coapPayload));
+        log.debug("content (" + coapPayload.length + "):\n" + new String(coapPayload));
         
         // unmarshall PrivacyDataPackage
         PrivacyDataPackage dataPackage;
@@ -207,6 +202,16 @@ public class Controller implements CoapRegistryWebserviceListener,
         
         // push status to CoapForwardingWebservice
         coapForwardingWebservice.updateRdfSensorData(dataPackage, contentLifetime);
+        
+        if (!coapForwardingWebservice.isRegisteredAtSSP()) {
+        	// send registration of coapForwardingWebservice to Smart Service Proxy
+            try {
+                coapRegisterClient.registerWebservice(registryEntry.getSSP().getHost(), coapForwardingWebservice.getPath());
+            } catch (UnknownHostException | URISyntaxException e) {
+                log.error("Registration at Smart Service Proxy failed", e);
+            }
+            coapForwardingWebservice.setRegisteredAtSSP(true);
+        }
     }
     
     /**

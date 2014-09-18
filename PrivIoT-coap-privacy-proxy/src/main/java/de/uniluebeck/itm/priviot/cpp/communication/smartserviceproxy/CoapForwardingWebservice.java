@@ -43,6 +43,8 @@ public class CoapForwardingWebservice  extends ObservableWebservice<PrivacyDataP
 
     private Map<Long, String> templates;
     
+    private boolean isRegisteredAtSSP = false;
+    
     /**
      * Constructor
      * @param path Path where the Webservice is registered
@@ -129,7 +131,9 @@ public class CoapForwardingWebservice  extends ObservableWebservice<PrivacyDataP
 
         while(resourceStatus == null && iterator.hasNext()){
             contentFormat = iterator.next();
-            resourceStatus = getWrappedResourceStatus(contentFormat);
+            if (contentFormat == ContentFormat.APP_XML) {
+            	resourceStatus = getWrappedResourceStatus(contentFormat);
+            }
         }
 
         //generate the CoAP response
@@ -178,10 +182,11 @@ public class CoapForwardingWebservice  extends ObservableWebservice<PrivacyDataP
 
     @Override
     public byte[] getSerializedResourceStatus(long contentFormat) {
-        log.debug("Try to create payload (content format: " + contentFormat + ")");
+        log.debug("Try to create payload for " + getPath() + " (content format: " + contentFormat + ")");
 
         if (getResourceStatus() == null) {
-            return new byte[0];
+        	log.debug("resource status of " + getPath() + " is empty. return null.");
+            return null;
         }
         
         String ressourceStatusString = "";
@@ -201,6 +206,7 @@ public class CoapForwardingWebservice  extends ObservableWebservice<PrivacyDataP
         }
         else {
             // contentFormat not supported
+        	log.debug("Content format " + contentFormat +  " for " + getPath() + " not supported. return null");
             return null;
         }
         
@@ -214,4 +220,12 @@ public class CoapForwardingWebservice  extends ObservableWebservice<PrivacyDataP
         else
             return String.format(template, ressourceStatusString).getBytes(CoapMessage.CHARSET);
     }
+
+	public boolean isRegisteredAtSSP() {
+		return isRegisteredAtSSP;
+	}
+
+	public void setRegisteredAtSSP(boolean isRegisteredAtSSP) {
+		this.isRegisteredAtSSP = isRegisteredAtSSP;
+	}
 }
