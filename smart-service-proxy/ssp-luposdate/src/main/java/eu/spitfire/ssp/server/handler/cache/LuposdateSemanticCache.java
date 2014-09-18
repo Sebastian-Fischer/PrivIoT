@@ -184,54 +184,48 @@ public class LuposdateSemanticCache extends SemanticCache {
     
     @Override
     public ListenableFuture<Void> deleteNamedGraph(final URI graphName) {
-    	final SettableFuture<Void> result = SettableFuture.create();
-    	result.set(null);
-        return result;
-    }
-
-    //fischer: added alternative method, that really deletes graphs
-    @Override
-    public ListenableFuture<QueryResult> deleteNamedGraph(final URI graphName, Model namedGraph) throws Exception {
-    	final SettableFuture<QueryResult> deletionResultFuture = SettableFuture.create();
+        //fischer: implemented deletion of given graph
+        
+    	final SettableFuture<Void> deletionResultFuture = SettableFuture.create();
     	
-    	//String sparqlQuery = "";
-    	//String sparqlQuery = createInsertOrDeleteQuery(false, namedGraph);
-    	String sparqlQuery = createInsertOrDeleteQuery(false, graphName, null);
-    	
-    	log.debug("fischer: delete statement:\n" + sparqlQuery);
-    	
-    	//Execute Query and make the result a JENA result set
-    	lupos.datastructures.queryresult.QueryResult luposQueryResult = this.evaluator.getResult(sparqlQuery.toString());
-    	if (luposQueryResult == null) {
-    		deletionResultFuture.set(null);
+    	try {
+        	String sparqlQuery = createInsertOrDeleteQuery(false, graphName, null);
+        	
+        	//Execute Query and make the result a JENA result set
+            lupos.datastructures.queryresult.QueryResult luposQueryResult = this.evaluator.getResult(sparqlQuery.toString());
+            if (luposQueryResult == null) {
+                deletionResultFuture.set(null);
+            }
+        	
+            ListenableFuture<ResultSet> resultSetFuture = toResultSet(luposQueryResult);
+            Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
+                @Override
+                public void onSuccess(@Nullable ResultSet resultSet) {
+                    try{
+                        QueryResult queryResult = new QueryResult(resultSet);
+                        deletionResultFuture.set(null);
+                    }
+                    catch(Exception e){
+                        log.error("Exception while creating internal SPARQL query result message.", e);
+                        deletionResultFuture.setException(e);
+                    }
+    
+                }
+    
+                @Override
+                public void onFailure(Throwable t) {
+                    log.error("Exception during formating result set of deleteNamedGraph", t);
+                    deletionResultFuture.setException(t);
+                }
+            });
     	}
-    	
-    	ListenableFuture<ResultSet> resultSetFuture = toResultSet(luposQueryResult);
-        Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
-            @Override
-            public void onSuccess(@Nullable ResultSet resultSet) {
-                try{
-                    QueryResult queryResult = new QueryResult(resultSet);
-                    deletionResultFuture.set(queryResult);
-                }
-                catch(Exception ex){
-                    log.error("Exception while creating internal SPARQL query result message.", ex);
-                    deletionResultFuture.setException(ex);
-                }
-
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                log.error("Unexpected Exception!", t);
-                deletionResultFuture.setException(t);
-            }
-        });
-    	
+    	catch (Exception e) {
+    	    log.error("Exception during deleteNamedGraph", e);
+    	}
+        
         return deletionResultFuture;
-    	
     }
-
+    
 
     private void updateSensorValue2(URI graphName, RDFNode sensorValue) throws Exception{
         String updateQuery = "PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n" +
@@ -246,10 +240,8 @@ public class LuposdateSemanticCache extends SemanticCache {
         long startTime = System.currentTimeMillis();
         log.debug("Start insertion of graph {}", graphName);
 
-        //fischer: added graph
-        //String query = createInsertOrDeleteQuery(true, namedGraph);
+        //fischer: added namedGraph to insert in named graph instead of default graph
         String query = createInsertOrDeleteQuery(true, graphName, namedGraph);
-        log.debug("fischer: insert query:\n" + query);
         this.evaluator.getResult(query);
 
         log.debug("Finished insertion of graph {} (duration: {} millis.",
@@ -258,8 +250,15 @@ public class LuposdateSemanticCache extends SemanticCache {
 
 
     private String createInsertOrDeleteQuery(boolean insert, URI graphName, Model namedGraph){
+        //fischer: combinations not possible
+        if ((insert && namedGraph == null) ||
+            (graphName == null && namedGraph == null)) {
+            return "";
+        }
+        
         StringBuilder queryBuilder = new StringBuilder();
 
+        //fischer: added handling for combination !insert && namedGraph == null as "DELETE WHERE { GRAPH <x> { ?s ?p ?o . } }"
         queryBuilder.append(insert ? "INSERT " : "DELETE ");
         if (namedGraph != null) {
             queryBuilder.append("DATA { ");

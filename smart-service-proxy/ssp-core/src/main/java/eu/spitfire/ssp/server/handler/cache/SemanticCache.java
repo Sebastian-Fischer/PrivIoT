@@ -273,7 +273,6 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         if(cacheUpdateTask.getExpiringNamedGraph() != null){
             ExpiringNamedGraph expiringNamedGraph = cacheUpdateTask.getExpiringNamedGraph();
             //fischer: enable expiring of graphs
-            //cacheUpdateFuture = putNamedGraphToCache(expiringNamedGraph.getGraphName(), expiringNamedGraph.getGraph());
             handleExpiringNamedGraph(expiringNamedGraph);
             cacheUpdateTask.getCacheUpdateFuture().set(null);
         }
@@ -385,8 +384,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                 //Schedule new expiry
                 final URI graphName = expiringNamedGraph.getGraphName();
                 Date expiry = expiringNamedGraph.getExpiry();
-                //fischer: added graph, because it's needed inside scheduleNamedGraphExpiry
-                scheduleNamedGraphExpiry(graphName, expiringNamedGraph.getGraph(), expiry);
+                scheduleNamedGraphExpiry(graphName, expiry);
 
                 //Update cache
                 log.debug("Start put graph \"{}\" to cache.", graphName);
@@ -427,8 +425,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                 });
     }
 
-    //fischer: added graph, because it's needed for deleteNamedGraph
-    private void scheduleNamedGraphExpiry(final URI graphName, final Model namedGraph, Date expiry) {
+    
+    private void scheduleNamedGraphExpiry(final URI graphName, Date expiry) {
         log.info("Received new status of {} (expiry: {})", graphName, expiry);
         Long startTime = System.currentTimeMillis();
         log.debug("Schedule timeout for resource {}.", graphName);
@@ -449,13 +447,13 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     try {
                     	//fischer: add handling of ListenableFuture
                     	log.debug("Delete named graph " + graphName);
-                    	ListenableFuture<QueryResult> deletionResultFuture =  deleteNamedGraph(graphName, namedGraph);
+                    	ListenableFuture<Void> deletionResultFuture =  deleteNamedGraph(graphName);
                     	
-                    	Futures.addCallback(deletionResultFuture, new FutureCallback<QueryResult>() {
+                    	Futures.addCallback(deletionResultFuture, new FutureCallback<Void>() {
 
                     		@Override
-							public void onSuccess(QueryResult result) {
-                    			log.info("Successfully deleted resource {} from cache. Query result: {}", graphName, result);
+							public void onSuccess(Void a) {
+                    			log.info("Successfully deleted resource {} from cache.", graphName);
 							}
                     		
 							@Override
@@ -527,9 +525,6 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * delete operation
      */
     public abstract ListenableFuture<Void> deleteNamedGraph(URI graphName);
-    
-    //fischer: added alternative method, because without the graph it's not possible to delete it
-    public abstract ListenableFuture<QueryResult> deleteNamedGraph(URI graphName, Model namedGraph) throws Exception;
 
 
     /**
