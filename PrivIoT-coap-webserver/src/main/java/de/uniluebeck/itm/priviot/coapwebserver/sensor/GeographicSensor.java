@@ -1,5 +1,6 @@
 package de.uniluebeck.itm.priviot.coapwebserver.sensor;
 
+import java.security.SecureRandom;
 import java.util.concurrent.ScheduledExecutorService;
 
 import de.uniluebeck.itm.priviot.coapwebserver.data.GeographicSensorData;
@@ -15,6 +16,8 @@ public class GeographicSensor extends Sensor {
 	private double latitude;
 	/** Maximum changing of the latitude and longitude in one step */
 	private double maxChange;
+	
+	private SecureRandom secureRandom;
 	
 	/**
 	 * Constructor.
@@ -34,13 +37,15 @@ public class GeographicSensor extends Sensor {
 		this.longitude = startLongitude;
 		this.latitude = startLatitude;
 		this.maxChange = maxChange;
+		
+		secureRandom = new SecureRandom();
 	}
 	
 	@Override
 	protected void getAndPublishSensorData() {
 		// add a random number between -maxChange and maxChange
-		longitude += (Math.random() * 2*maxChange) - maxChange;
-		latitude += (Math.random() * 2*maxChange) - maxChange;
+		longitude += (secureRandom.nextDouble() * 2*maxChange) - maxChange;
+		latitude += (secureRandom.nextDouble() * 2*maxChange) - maxChange;
 		
 		GeographicSensorData sensorData = new GeographicSensorData(getSensorUriPath(), longitude, latitude);
 		sensorData.setLifetime(getUpdateFrequency());
