@@ -89,6 +89,9 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     /** default frequency in which new values are published by the sensor in seconds */
     private int sensorDefaultUpdateFrequency;
     
+    /** if true, a random number is added to the default update frequency */
+    private boolean sensorAddRandomToUpdateFrequency;
+    
     /** Maximum changing in one random step of the sensor values langitude and latitude */
     private double maxChange;
     
@@ -132,6 +135,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     	doEncrypt = config.getBoolean("doencrypt");
     	numberOfSensors = config.getInt("sensor.count");
     	sensorDefaultUpdateFrequency = config.getInt("sensor.updatefrequency");
+    	sensorAddRandomToUpdateFrequency = config.getBoolean("sensor.updatefrequencyrandom");
     	maxChange = config.getDouble("sensor.maxchange");
     	int ownPort = config.getInt("port");
     	String urlSSP = config.getString("ssp.host");
@@ -225,8 +229,14 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     		log.debug("initialize sensor " + sensorPath + " with special updateFrequency " + updateFrequency);
     	}
     	catch (Exception e) {
-    		log.debug("no updatefrequency given for " + sensorPath + ". Use default value.");
     		updateFrequency = sensorDefaultUpdateFrequency;
+    		if (sensorAddRandomToUpdateFrequency) {
+    		    // add random number, maximum 10 percent of updateFrequency
+    		    updateFrequency += (int)Math.round((Math.random() * 0.1 * updateFrequency));
+    		}
+    		log.debug("no updatefrequency given for " + sensorPath + ". Use default value" + 
+    		          (sensorAddRandomToUpdateFrequency ? " + random: " : ": ") + 
+    		          updateFrequency);
     	}
     	
     	// if there is a special secret given in config take that one
@@ -270,6 +280,12 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     		log.debug("no longitude value given for " + sensorPath + ". use default value.");
     		startLongitude = 53.8686906;
     	}
+    	
+    	log.info("initialize sensor " + sensorPath + "." + 
+    	         " updateFrequency: " + updateFrequency + 
+    	         " startLongitude: " + startLongitude +
+    	         " startLatitude: " + startLatitude +
+    	         " maxChange: " + maxChange);
     	
         // create and initialize a GeographicSensor and it's Webservice
         GeographicSensor sensor = new GeographicSensor(sensorPath, updateFrequency, 
