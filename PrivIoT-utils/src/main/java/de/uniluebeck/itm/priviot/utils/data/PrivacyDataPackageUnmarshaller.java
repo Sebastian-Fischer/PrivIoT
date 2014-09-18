@@ -34,8 +34,8 @@ public class PrivacyDataPackageUnmarshaller {
         }
     }
 
-    public static PrivacyDataPackage unmarshal(InputStream xmlStream) throws JAXBException, XMLStreamException {
-
+    public static synchronized PrivacyDataPackage unmarshal(final InputStream xmlStream) throws JAXBException, XMLStreamException {
+        
         //create xml event reader for input stream
         XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
         XMLEventReader xmlEventReader = xmlInputFactory.createXMLEventReader(xmlStream);
