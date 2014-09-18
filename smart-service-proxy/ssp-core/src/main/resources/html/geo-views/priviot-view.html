@@ -1,0 +1,634 @@
+<!DOCTYPE HTML>
+<html style="height: 100%">
+<head>
+    <meta charset="utf-8" />
+    <title>PrivIoT-View</title>
+    <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+    </style>
+
+    <script src="../../style/javascript/jquery-1.11.1.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    <script src="../../style/javascript/sjcl.js"></script>
+    
+    <script>
+    
+        // host of pseudonym URIs, needed to generate pseudonyms for private devices
+        var pseudonymHost = "coap://www.pseudonym.com/";
+        
+        // all guiUpdateInterval milliseconds the gui is updated
+        var guiUpdateInterval = 2000;
+        
+        // a sparql query that asks for every sensor and it's position 
+        var queryOld = '\
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
+PREFIX itm: <http://example.org/itm-geo-test#>\
+\
+SELECT ?sensor ?point WHERE {\
+  ?sensor itm:hasPosition ?position .\
+  ?position geo:asWKT ?point .\
+}';
+      var query = '\
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
+PREFIX itm: <http://example.org/itm-geo-test#>\
+\
+SELECT ?sensor ?point WHERE {\
+ GRAPH ?sensor { \
+  ?sensor itm:hasPosition ?position .\
+  ?position geo:asWKT ?point . \
+ }\
+}';
+
+
+       /*
+        * Type PublicDevice
+        * Represents a device, from which no further information is known.
+        *
+        * use: var device = new PublicDevice(a, b);
+        * 
+        * pseudonymUri: <String> the uri of the device's pseudonym
+        * latitude: <int> latitude coordinate
+        * longitude: <int> longitude coordinate
+        * gmapsCircle: <GoogleMaps object> the object that is drawn on the map
+        */
+       var PublicDevice = function(pseudonymUri, latitude, longitude) {
+           this.pseudonymUri = pseudonymUri;
+           this.latitude = latitude;
+           this.longitude = longitude;
+           
+           this.gmapsCircle = null;
+           this.isUpdated = true;
+       }
+
+       /*
+        * Type PrivateDevice
+        * Represents a known public device.
+        *
+        * use: var device = new PrivateDevice(a, b, c, d, e, f);
+        *
+        * index: <int> index of the PrivateDevice. 1-based. The index is not equal to the position in the privateDevices array. 
+        * uri: <String> original uri of the device (not the pseudonym)
+        * updateInterval: <int> the interval in seconds the data of the device is valid. 
+        *                 Every updateInterval the data changes in the database.
+        * secret: <String> The secret of the device as base64 encoded string
+        * hexColor: <String> The color as hex value in which the position of the device is drawn on the map.
+        *                    For a predefined color use PrivateDevice.getDefaultHexColor()
+        * formElement: <DOM object> The div container of the device's formular in the html code  
+        */
+       var PrivateDevice = function(index, uri, updateInterval, secret, hexColor, formElement) {
+           this.index = index;
+           this.uri = uri;
+           this.updateInterval = updateInterval;
+           this.secret = secret;
+           this.formElement = formElement;
+           this.polygon = null;
+           
+           this.hexColor = hexColor;
+       }
+       
+       /*
+        * static function that returns the default hex color for a device
+        * deviceIndex: <int> The index of the device
+        * return: <String> the hex color code 
+        */
+       PrivateDevice.getDefaultHexColor = function(deviceIndex) {
+           if (deviceIndex == 1) {
+               return '#0020f0'; // blue
+           }
+           else if (deviceIndex == 2) {
+               return '#e0e000'; // yellow
+           }
+           else {
+               return '#444444'; // gray
+           }
+       }
+       
+       /*
+        * Member function that helps destroying a PrivateDevice object
+        * cleans up, so the object can be deleted.
+        * returns null, so that obj = obj.destroy(); is possible to delete obj.
+        */
+        PrivateDevice.prototype.destroy = function() {
+            // delete polygon from the map
+            removePrivateDevicePolygon(this);
+            
+            return null;
+        }
+
+
+        var map;
+        var mapReady;
+        
+        // Array of google.maps.Circle. Holds the circles, drawn into the map for public devices
+        var publicDevices = [];
+        
+        // Array of PrivateDevice. holds all known private devices
+        var privateDevices = [];
+        
+        
+
+        $(document).ready(function(){
+            initializeMap();
+        });
+
+        function initializeMap() {
+            var mapOptions = {
+                zoom: 15,
+                center: new google.maps.LatLng(53.868141, 10.687884),
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+
+            map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+
+            mapReady = true;
+            setInterval(sendQuery, guiUpdateInterval);
+        }
+
+        function sendQuery(){
+            if(mapReady == false){
+                return;
+            }
+            mapReady = false;
+            console.log("Send Query");
+
+            var formData = new FormData();
+            formData.append('query', query);
+
+            $.ajax({
+                type: "POST",
+                beforeSend: function (request)
+                {
+                    request.setRequestHeader("Accept", 'application/sparql-results+json');
+                },
+                url: '/services/sparql-endpoint',
+                data: formData,
+                dataType: 'json',
+                contentType: false,
+                processData: false,
+                success: function(queryResult){
+                    console.log("Query result received!");
+                    updateMap(queryResult);
+                    mapReady = true;
+                },
+                error: function(e){
+                    console.log('Error during request' + e);
+                    mapReady = true;
+                }
+            });
+        }
+        
+        
+        /*--------------------------------*/
+        /* ----- Draw functions --------- */
+
+        /*
+         * Updates the map with the received results of the query.
+         * Known private devices are drawn as arrows.
+         * All the other public devices are drawn as points.
+         */
+        function updateMap(queryResult){
+        
+            // set all public devices to be outdated
+            for (var i = 0; i < publicDevices.length; i++) {
+                publicDevices[i].isUpdated = false;
+            }
+        
+            queryResult.results.bindings.forEach(function(binding){
+                if (binding.sensor === undefined ||  binding.point === undefined) {
+                    return;
+                }
+                
+                var sensorUri = binding.sensor.value;
+                var pointVal = binding.point.value;
+                
+                var point = pointVal.replace(/POINT\(/g, "").replace(/\)/g, "");
+                
+                var coordinates = point.split(" ");
+                var longitude = parseFloat(coordinates[0]);
+                var latitude = parseFloat(coordinates[1]);
+                
+                // see if the device is known as PrivateDevice
+                var device = findPrivateDeviceByPseudonym(sensorUri);
+
+                if (device == null) {
+                    // see if the device is known as PublicDevice
+                    device = findPublicDevice(sensorUri);
+                    
+                    if (device == null) {
+                        // create a new PublicDevice
+                        device = new PublicDevice(sensorUri, 0.0, 0.0);
+                        publicDevices.push(device);
+                    } 
+                    
+                    // draws the public device if it's new or it's position has changed. sets isUpdated to true.
+                    drawPublicDevice(latitude, longitude, device);
+                }
+                else {
+                    // draws the public device
+                	drawPrivateDevice(latitude, longitude, device);
+                }
+            });
+            
+            // remove outdated points from the map and delete the objects
+	        for (var i = 0; i < publicDevices.length; i++) {
+	            if (! publicDevices[i].isUpdated) {
+	                if (publicDevices[i].gmapsCircle != null) {
+		            	publicDevices[i].gmapsCircle.setMap(null);
+		            }
+		            publicDevices.splice(i, 1);
+		            i--;
+		        }
+	        }
+            
+            console.log("public device coordinates: " + publicDevices.length);
+        }
+        
+        /*
+         * Draws a circle at the position of the map, where a public device is located.
+         * latitude: <int> latitude coordinate of the device
+         * longitude: <int> longitude coordinate of the device
+         */
+        function drawPublicDevice(latitude, longitude, device) {
+            // check if point is already drawn
+            if (latitude == device.latitude && longitude == device.longitude) {
+                device.isUpdated = true;
+                return;
+            }
+            
+            var center = new google.maps.LatLng(latitude, longitude);
+            var radius = 10; // in meter
+            var hexColor = '#f04000'; //red
+            
+            gmapsCircle = new google.maps.Circle({
+		        center: center,
+		        radius: radius,
+		        strokeColor: hexColor,
+		        strokeOpacity: 0.8,
+		        strokeWeight: 2,
+		        fillColor: hexColor,
+		        fillOpacity: 0.80,
+		        map: map
+		    });
+            
+            // draw new points
+            gmapsCircle.setMap(map);
+            
+            if (device.gmapsCircle != null) {
+            	device.gmapsCircle.setMap(null);
+             }
+            device.gmapsCircle = gmapsCircle;
+            device.isUpdated = true;
+        }
+        
+        /*
+         * Draws an arrow at the position of the map, where the given private device is located.
+         * The arrow at the old position of the device is removed from the map.
+         * latitude: <int> latitude coordinate of the device
+         * longitude: <int> longitude coordinate of the device
+         * device: <PrivateDevice> the object of the known private device
+         */
+        function drawPrivateDevice(latitude, longitude, device) {
+            // draw a arrow
+            var gmapsPoints = [];
+            gmapsPoints.push(new google.maps.LatLng(latitude + 0.001, longitude - 0.0003));
+            gmapsPoints.push(new google.maps.LatLng(latitude + 0.001, longitude + 0.0003));
+            gmapsPoints.push(new google.maps.LatLng(latitude, longitude));
+            
+            console.log(device.uri + ": latitude: " + latitude + ", longitude: " + longitude);
+
+            var hexColor = device.hexColor;
+
+            var gmapsPolygon = new google.maps.Polygon({
+                paths:  gmapsPoints,
+                strokeColor: hexColor,
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: hexColor,
+                fillOpacity: 0.80
+            });
+            
+           removePrivateDevicePolygon(device);
+            
+            device.polygon = gmapsPolygon;
+            device.polygon.setMap(map);
+        }
+        
+        /*
+         * Removes the polygon of a device from the map.
+         * device: <PrivateDevice> the device object
+         */
+        function removePrivateDevicePolygon(device) {
+             if (device.polygon != null) {
+               device.polygon.setMap(null);
+            }
+        }
+        
+        
+        /*------------------------------------*/
+        /* ----- Helper functions ----------- */
+        
+        /*
+         * Finds a device, specified by index, in the privateDevices array
+         * index: <int> index of the device
+         * return: <PrivateDevice> the device object or null, if not found
+         */
+        function getPrivateDevice(index) {
+            for (var i = 0; i < privateDevices.length; i++) {
+                if (privateDevices[i].index == index) {
+                    return privateDevices[i];
+                }
+            }
+            return null;
+        }
+        
+        /*
+         * Finds a public device, specified by the pseudonymUri, in the publicDevices array
+         * pseudonymUri: <String> uri of the pseudonym
+         * return: <PublicDevice> the device object or null, if not found
+         */
+        function findPublicDevice(pseudonymUri) {
+            for (var i = 0; i < publicDevices.length; i++) {
+                if (publicDevices[i].pseudonymUri.valueOf() == pseudonymUri.valueOf()) {
+                    return publicDevices[i];
+                }
+            }
+            return null;
+        }
+        
+        /*
+         * Finds a device in the array privateDevices by it's current pseudonym.
+         * Therefore the current pseudonym is generated for each known device.
+         * If a device's pseudonym equals the given uri, it is returned.
+         * uri: <String> pseudonym uri of the device to find
+         * return: <PrivateDevice> the device, or null if no known device's pseudonym equals uri.
+         */
+        function findPrivateDeviceByPseudonym(uri) {
+            for (var i = 0; i < privateDevices.length; i++) {
+                var pseudonym = generatePseudonym(privateDevices[i]);
+            
+                if (uri.valueOf() == pseudonym.valueOf()) {
+                    return privateDevices[i];
+                }
+            }
+            return null;
+        }
+        
+        /*
+         * Generates the current pseudonym for the given device.
+         * Therefore the algorithm of the PrivIoT concept is used.
+         * The current pseudonym for a device changes every device.updateInterval seconds.
+         * The algorithm needs the values device.uri, device.updateInterval and device.secret.
+         * return: <String> pseudonym encoded as url-safe Base64 string
+         */
+        function generatePseudonym(device) {
+        	var actDate = new Date();
+	        var milliseconds = actDate.getTime();
+	        var modulo = milliseconds % (device.updateInterval * 1000);
+	        var roundedSeconds = milliseconds - modulo;
+	        
+	        var value = device.uri + roundedSeconds;
+	        
+	        var secretBitArr = sjcl.codec.base64.toBits(device.secret);
+	        var secretByteArr = bitArray2ByteArray(secretBitArr);
+	        
+	        var hmac = new sjcl.misc.hmac(secretBitArr, sjcl.hash.sha256);
+	        var hmacBitArr = hmac.encrypt(value);	        
+	        
+	        var hmacValBase64 = sjcl.codec.base64.fromBits(hmacBitArr, true, true);
+	        
+	        var pseudonym = pseudonymHost + hmacValBase64;
+	        
+	        return pseudonym;
+        }
+        
+        /*
+         * Helper function, that converts a sjcl bit array to a javascript byte array.
+         * bitArr: <sjcl.bitArray>
+         * return: <byte[]>
+         */
+        function bitArray2ByteArray(bitArr) {
+        	var hexArr = sjcl.codec.hex.fromBits(bitArr);
+	        var byteArr = [];
+	        for (var i = 0;  i < hexArr.length - 1; i+=2) {
+	            byteArr.push( (parseInt(hexArr[i], 16) << 4) | (parseInt(hexArr[i+1], 16) & 0xff) );
+	        }
+	        return byteArr;
+        }
+        
+        /*
+         * Helper function, that converts a javascript byte array to a sjcl bit array.
+         * byteArr: <byte[]>
+         * return: <sjcl.bitArray>
+         */
+        function byteArray2BitArray(byteArr) {
+            var hexString = "";
+            for (var i = 0;  i < byteArr.length; i++) {
+                str = byteArr[i].toString(16);
+            
+                // add zeros as prefix
+                str = (str.length == 1) ? "0" + str : str;
+                str = (str.length == 0) ? "00"      : str;
+                 
+                hexString += str;
+            }
+            
+            return sjcl.codec.hex.toBits(hexString);
+        }
+        
+        /*
+         * Searches the array privateDevices and returns the lowest device index that is unused.
+         */
+        function getFirstFreePrivateDeviceIndex() {
+            if (privateDevices.length == 0) {
+                return 1; // device indices are 1-based
+            }
+        
+            // create an array with all possibly available indices
+            var freeIndices = []
+            for (var i = 0; i < privateDevices.length; i++) {
+                freeIndices.push(i + 1); // device indices are 1-based 
+            }
+            
+            // delete all used indices
+            for (var i = 0; i < privateDevices.length; i++) {
+                for (var j = 0; j < freeIndices.length; j++) {
+                    if (privateDevices[i].index == freeIndices[j]) {
+                    	freeIndices.splice(j, 1);
+                    }
+                }
+            }
+            
+            // no one is free, return a new one
+            if (freeIndices.length == 0) {
+                return privateDevices.length + 1; //device indices are 1-based
+            }
+            // return first free
+            else {
+                return freeIndices[0];
+            }
+        }
+        
+        
+        /*---------------------------------*/
+        /* ----- GUI functions ----------- */
+        
+        /*
+         * GUI event, called when a new device shall be added.
+         * Adds the new device to the array privateDevices and creates a formular in the html code.
+         */
+        function btnAddPrivateDeviceClick() {
+            var deviceIndex = getFirstFreePrivateDeviceIndex();
+            
+            var uri = "coap://localhost/sensors/" + deviceIndex;
+            var updateInterval = 15;
+            var secret = "";
+            
+            var hexColor = PrivateDevice.getDefaultHexColor(deviceIndex);
+            
+            var formElement = addPrivateDeviceFormular(deviceIndex, uri, updateInterval, secret, hexColor);
+            
+            // create new PrivateDevice object
+            privateDevices.push(new PrivateDevice(deviceIndex, uri, updateInterval, secret, hexColor, formElement));
+            
+            console.log("Added device " + deviceIndex);
+        }
+        
+        /*
+         * GUI event, called when one device shall be removed
+         * index: <int> index of the device
+         */
+        function btnRemovePrivateDeviceClick(index) {
+            var device = null;
+            var indexInArray = 0;
+            for (var i = 0; i < privateDevices.length; i++) {
+                if (privateDevices[i].index == index) {
+                    device = privateDevices[i];
+                    indexInArray = i;
+                }
+            }
+            if (device == null) {
+                return;
+            }
+            
+            device.formElement.parentNode.removeChild(device.formElement);
+            
+            // calls member method destroy(), which cleans up and returns null
+            device = device.destroy();
+            
+            privateDevices.splice(indexInArray, 1);
+            
+            console.log("removed device " + index);
+        }
+        
+        /*
+         * Adds the formular of a new device to the html code.
+         * index: <int> the index of the new device
+         * uri: <String> the default uri for the new device
+         * updateInterval: <int> the default updateInterval for the new device
+         * secret: <String> the default secret for the new device
+         * return: the dom object of the created html div container, that is added to the html code
+         */
+        function addPrivateDeviceFormular(index, uri, updateInterval, secret, hexColor) {
+            var formName = "form" + index;
+            var text = "";
+            var newElement = document.createElement('div');
+            
+            text += '<div id="' + formName + '" style="box-shadow: 0px 0px 0px 1px ' + hexColor + '; padding: 2px; margin-top: 5px; margin-bottom:5px">';
+            text += '    <div>PrivateDevice' + index + ':</div>';
+            text += '    <table style="width:100%; padding-left: 10px">';
+            text += '        <tr><td> URI: </td><td> <input type="text" name="' + formName + '_uri" value="' + uri + '" size="40" onkeyup="changedUri(' + index + ', this.value)"/> </td><td/></tr>';
+            text += '        <tr><td> Update interval (sec.): </td><td> <input type="text" name="' + formName + '_interval" value="' + updateInterval + '" size="4" onkeyup="changedUpdateInterval(' + index + ', this.value)"/> </td><td/></tr>';
+            text += '        <tr>';
+            text += '            <td> Secret: </td><td> <input type="text" name="' + formName + '_secret" value="' + secret + '" size="90" onkeyup="changedSecret(' + index + ', this.value)"/> </td>';
+            text += '            <td style="text-align:right"> <input type="button" name="' + formName + '_btnRemovePrivateDevice" value="Remove PrivateDevice" onclick="btnRemovePrivateDeviceClick(' + index + ')"/> </td>';
+            text += '        </tr>';
+            text += '   </table>';
+            text += '</div>';
+            text += '<br/>';
+            
+            newElement.innerHTML = text;
+            
+            var divForm = document.getElementById("formContainer");
+            
+            divForm.appendChild(newElement);
+            
+            return newElement;
+        }
+        
+        /*
+         * GUI event, called when the uri value of a device changed
+         * index: <int> index of the device
+         * value: <String> new value of uri
+         */
+        function changedUri(index, value) {
+            var device = getPrivateDevice(index);
+            if (device == null) {
+                return;
+            }
+            
+            device.uri = value;
+        }
+        
+        /*
+         * GUI event, called when the updateInterval value of a device changed
+         * index: <int> index of the device
+         * value: <String> new value of updateInterval
+         */
+        function changedUpdateInterval(index, value) {
+            var device = getPrivateDevice(index);
+            if (device == null) {
+                return;
+            }
+            
+            device.updateInterval = value;
+        }
+        
+        /*
+         * GUI event, called when the secret value of a device changed
+         * index: <int> index of the device
+         * value: <String> new value of secret 
+         */
+        function changedSecret(index, value) {
+            var device = getPrivateDevice(index);
+            if (device == null) {
+                return;
+            }
+            
+            device.secret = value;
+        }
+    </script>
+</head>
+
+<body style="height: 100%">
+<div class="ui one column page grid" style="height: auto">
+    <div class="column" style="height: auto">
+        <div id="header">
+        </div>
+        <script src="../../style/javascript/ssp-menu.js"></script>
+
+        <h4 class="ui top attached header">
+            PrivIoT-View (GoogleMaps Overlay)
+        </h4>
+
+        <div class="ui segment attached" style="auto">
+            <div id="map-canvas" style="height:800px; margin: 0; padding: 0"></div>
+            <br/>
+            
+            <div id="formContainer" style="height:auto"></div>
+            <div id="formBottom">
+                <input type="button" name="btnAddPrivateDevice" value="Add Device" onclick="btnAddPrivateDeviceClick()"/>
+            </div>
+        </div>
+    </div>
+</div>
