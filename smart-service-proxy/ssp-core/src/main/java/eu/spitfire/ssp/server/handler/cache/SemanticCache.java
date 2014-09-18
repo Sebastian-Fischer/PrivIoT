@@ -458,11 +458,11 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     		
 							@Override
 							public void onFailure(Throwable e) {
-								log.error("Could not delete resource {} from cache.", graphName, e);
+								log.error("Could not delete resource {} from cache: {}", graphName, e);
 							}
                         });
                     } catch (Exception e) {
-                        log.error("Could not delete resource {} from cache.", graphName, e);
+                        log.error("Could not delete resource {} from cache: {}", graphName, e);
                     }
                 }
             }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY_MILLIS, TimeUnit.MILLISECONDS));

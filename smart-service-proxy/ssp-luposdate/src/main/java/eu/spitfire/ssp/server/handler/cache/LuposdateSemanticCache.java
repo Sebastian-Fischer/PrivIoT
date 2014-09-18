@@ -191,36 +191,19 @@ public class LuposdateSemanticCache extends SemanticCache {
     	try {
         	String sparqlQuery = createInsertOrDeleteQuery(false, graphName, null);
         	
-        	//Execute Query and make the result a JENA result set
-            lupos.datastructures.queryresult.QueryResult luposQueryResult = this.evaluator.getResult(sparqlQuery.toString());
-            if (luposQueryResult == null) {
-                deletionResultFuture.set(null);
-            }
-        	
-            ListenableFuture<ResultSet> resultSetFuture = toResultSet(luposQueryResult);
-            Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
-                @Override
-                public void onSuccess(@Nullable ResultSet resultSet) {
-                    try{
-                        QueryResult queryResult = new QueryResult(resultSet);
-                        deletionResultFuture.set(null);
-                    }
-                    catch(Exception e){
-                        log.error("Exception while creating internal SPARQL query result message.", e);
-                        deletionResultFuture.setException(e);
-                    }
-    
+        	synchronized (evaluator) {
+            	//Execute Query and make the result a JENA result set
+                lupos.datastructures.queryresult.QueryResult luposQueryResult = this.evaluator.getResult(sparqlQuery.toString());
+                
+                if (luposQueryResult == null) {
+                    deletionResultFuture.setException(new Exception("Execution of sparql query returned null"));
                 }
-    
-                @Override
-                public void onFailure(Throwable t) {
-                    log.error("Exception during formating result set of deleteNamedGraph", t);
-                    deletionResultFuture.setException(t);
-                }
-            });
+        	}
+            
+            deletionResultFuture.set(null);
     	}
     	catch (Exception e) {
-    	    log.error("Exception during deleteNamedGraph", e);
+    	    deletionResultFuture.setException(e);
     	}
         
         return deletionResultFuture;
@@ -232,7 +215,9 @@ public class LuposdateSemanticCache extends SemanticCache {
                 "DELETE {<" + graphName + "-SensorOutput> ssn:hasValue ?value }\n" +
                 "INSERT {<" + graphName + "-SensorOutput> ssn:hasValue " + sensorValue.toString() + " }";
 
-        this.evaluator.getResult(updateQuery);
+        synchronized (evaluator) {
+            this.evaluator.getResult(updateQuery);
+        }
     }
 
 
@@ -242,7 +227,10 @@ public class LuposdateSemanticCache extends SemanticCache {
 
         //fischer: added namedGraph to insert in named graph instead of default graph
         String query = createInsertOrDeleteQuery(true, graphName, namedGraph);
-        this.evaluator.getResult(query);
+        
+        synchronized (evaluator) {
+            this.evaluator.getResult(query);
+        }
 
         log.debug("Finished insertion of graph {} (duration: {} millis.",
                 graphName, System.currentTimeMillis() - startTime);
@@ -313,8 +301,11 @@ public class LuposdateSemanticCache extends SemanticCache {
     private QueryResult processSparqlQuery2(Query sparqlQuery) throws Exception{
         final SettableFuture<QueryResult> queryResultFuture = SettableFuture.create();
 
-        //Execute Query and make the result a JENA result set
-        ListenableFuture<ResultSet> resultSetFuture = toResultSet(this.evaluator.getResult(sparqlQuery.toString()));
+        ListenableFuture<ResultSet> resultSetFuture;
+        synchronized (evaluator) {
+            //Execute Query and make the result a JENA result set
+            resultSetFuture = toResultSet(this.evaluator.getResult(sparqlQuery.toString()));
+        }
         Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
             @Override
             public void onSuccess(@Nullable ResultSet resultSet) {

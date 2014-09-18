@@ -30,8 +30,7 @@
         // all guiUpdateInterval milliseconds the gui is updated
         var guiUpdateInterval = 2000;
         
-        // a sparql query that asks for every sensor and it's position 
-        var queryOld = '\
+        var queryWithDefaultGraph = '\
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
 PREFIX itm: <http://example.org/itm-geo-test#>\
 \
@@ -39,7 +38,8 @@ SELECT ?sensor ?point WHERE {\
   ?sensor itm:hasPosition ?position .\
   ?position geo:asWKT ?point .\
 }';
-      var query = '\
+
+      var queryWithNamedGraphs = '\
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
 PREFIX itm: <http://example.org/itm-geo-test#>\
 \
@@ -49,6 +49,9 @@ SELECT ?sensor ?point WHERE {\
   ?position geo:asWKT ?point . \
  }\
 }';
+
+       // a sparql query that asks for every sensor and it's position 
+       var query = queryWithNamedGraphs;
 
 
        /*
@@ -235,7 +238,7 @@ SELECT ?sensor ?point WHERE {\
                     drawPublicDevice(latitude, longitude, device);
                 }
                 else {
-                    // draws the public device
+                    // draws the private device
                 	drawPrivateDevice(latitude, longitude, device);
                 }
             });
@@ -288,6 +291,8 @@ SELECT ?sensor ?point WHERE {\
             	device.gmapsCircle.setMap(null);
              }
             device.gmapsCircle = gmapsCircle;
+            device.latitude = latitude;
+            device.longitude = longitude;
             device.isUpdated = true;
         }
         
