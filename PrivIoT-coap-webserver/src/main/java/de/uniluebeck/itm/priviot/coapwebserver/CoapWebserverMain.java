@@ -65,6 +65,11 @@ public class CoapWebserverMain {
 	private static void startController() {
 	    CoapWebserverController controller = new CoapWebserverController(config);
 	    
+	    try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+		}
+	    
 	    controller.start();
 	}
 

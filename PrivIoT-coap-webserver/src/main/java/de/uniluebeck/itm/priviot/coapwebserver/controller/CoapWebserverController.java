@@ -71,6 +71,11 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     
     
+    /** If false, the encryption of sensor values is disabled. 
+     *  In this case the sensor values are send raw and not in a privacyData package.
+     */
+    private boolean doEncrypt;
+    
     /** Base path of sensors. The sensors will be for example <HOST_URI><sensorBasePath>/1 */
     private String sensorBasePath;
     
@@ -124,6 +129,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     	numberOfThreads = config.getInt("threads");
     	sensorBasePath = config.getString("sensorbasepath");
     	pseudonymUriHost = config.getString("pseudonymuri");
+    	doEncrypt = config.getBoolean("doencrypt");
     	numberOfSensors = config.getInt("sensor.count");
     	sensorDefaultUpdateFrequency = config.getInt("sensor.updatefrequency");
     	maxChange = config.getDouble("sensor.maxchange");
@@ -134,6 +140,9 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     	int portCPP = config.getInt("cpp.port");
     	int aesBitStrength = config.getInt("encryption.aesstrength");
     	
+    	if (!doEncrypt) {
+    		log.info("Encryption is deactivated");
+    	}    	
     	
     	coapServerApplication = new CoapServerApplication(ownPort);
         coapClientApplication = new CoapClientApplication();
@@ -143,8 +152,13 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         
         keyDatabase = new KeyDatabase();
         
-        encryptionParameters = new EncryptionParameters(AESCipherer.getAlgorithm(), aesBitStrength,
-                                                        RSACipherer.getAlgorithm(), 1024);
+        if (doEncrypt) {
+        	encryptionParameters = new EncryptionParameters(AESCipherer.getAlgorithm(), aesBitStrength,
+                                                           RSACipherer.getAlgorithm(), 1024);
+        }
+        else {
+        	encryptionParameters = new EncryptionParameters("", 0, "", 0);
+        }
         
         createSensorsAndWebservices();
         
@@ -158,12 +172,22 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      * Starts the processing of the application by sending the certificate request to SSP.
      */
     public void start() {
-        // send the certificate request to the SSP
-        try {
-            coapRegisterClient.sendCertificateRequest();
-        } catch (UnknownHostException | URISyntaxException e) {
-            log.error("Exception during sendCertificateRequest: " + e.getLocalizedMessage());
-        }
+    	if (doEncrypt) {
+	        // send the certificate request to the SSP
+	        try {
+	            coapRegisterClient.sendCertificateRequest();
+	        } catch (UnknownHostException | URISyntaxException e) {
+	            log.error("Exception during sendCertificateRequest: " + e.getLocalizedMessage());
+	        }
+    	}
+    	else {
+    		// send register request directly to Smart Service Proxy
+            try {
+                coapRegisterClient.sendRegisterRequestToSSP();
+            } catch (UnknownHostException | URISyntaxException e) {
+                log.error("Exception during sendRegisterRequest: " + e.getMessage());
+            }
+    	}
     }
     
     private void createSensorsAndWebservices() {
@@ -268,39 +292,63 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     	
     	String sensorURI = HOST_URI + sensor.getSensorUriPath();
     	
-    	// create the pseudonym for the actual time slot
-    	String sensorPseudonym;
-    	try {
-			sensorPseudonym = PseudonymizationProcessor.generateHmac256Pseudonym(sensorURI, data.getLifetime(), sensor.getSecret());
-		} catch (PseudonymizationException e) {
-			log.error("Error during Pseudonymization of new sensor data", e);
-			return;
-		}
-    	sensorPseudonym = pseudonymUriHost + sensorPseudonym;
+    	ResourceStatus resourceStatus;
     	
-    	// initialize Apache Jena RDF model
-    	Model model = ModelFactory.createDefaultModel();
-    	model.setNsPrefix("pseudonym", pseudonymUriHost);
-    	Resource resSensor = model.createResource(sensorPseudonym);
-    	
-    	// format and insert the sensor data into the model
-        if (data instanceof SimpleIntegerSensorData) {
-        	putIntegerSensorDataIntoModel((SimpleIntegerSensorData)data, model, resSensor);
-        }
-        else if (data instanceof GeographicSensorData) {
-        	putGeographicalSensorDataIntoModel((GeographicSensorData)data, model, resSensor);
-        }
-        else {
-        	log.error("Given SensorData not supported: "  + data.getSensorUriPath() + " (" + data.getClass() + ")");
-        	return;
-        }
-        
-        StringWriter stringWriter = new StringWriter();
-        model.write(stringWriter, "N3");
-        String rdfModelStr = stringWriter.getBuffer().toString();
-        log.debug("New sensor data available:\n" + rdfModelStr);
-        
-        ResourceStatus resourceStatus = new ResourceStatus(sensorPseudonym, model, data.getLifetime());
+    	if (doEncrypt) {
+	    	// create the pseudonym for the actual time slot
+	    	String sensorPseudonym;
+	    	try {
+				sensorPseudonym = PseudonymizationProcessor.generateHmac256Pseudonym(sensorURI, data.getLifetime(), sensor.getSecret());
+			} catch (PseudonymizationException e) {
+				log.error("Error during Pseudonymization of new sensor data", e);
+				return;
+			}
+	    	sensorPseudonym = pseudonymUriHost + sensorPseudonym;
+	    	
+	    	// initialize Apache Jena RDF model
+	    	Model model = ModelFactory.createDefaultModel();
+	    	model.setNsPrefix("pseudonym", pseudonymUriHost);
+	    	Resource resSensor = model.createResource(sensorPseudonym);
+	    	
+	    	// format and insert the sensor data into the model
+	        if (data instanceof SimpleIntegerSensorData) {
+	        	putIntegerSensorDataIntoModel((SimpleIntegerSensorData)data, model, resSensor);
+	        }
+	        else if (data instanceof GeographicSensorData) {
+	        	putGeographicalSensorDataIntoModel((GeographicSensorData)data, model, resSensor);
+	        }
+	        else {
+	        	log.error("Given SensorData not supported: "  + data.getSensorUriPath() + " (" + data.getClass() + ")");
+	        	return;
+	        }
+	        
+	        // for debug output
+	        StringWriter stringWriter = new StringWriter();
+	        model.write(stringWriter, "N3");
+	        String rdfModelStr = stringWriter.getBuffer().toString();
+	        log.debug("New sensor data available:\n" + rdfModelStr);
+	        
+	        resourceStatus = new ResourceStatus(sensorPseudonym, model, data.getLifetime());
+    	}
+    	else {
+    		Model model = ModelFactory.createDefaultModel();
+	    	model.setNsPrefix("sn", HOST_URI + sensorBasePath + "#");
+	    	Resource resSensor = model.createResource(sensorURI);
+	    	
+    		// format and insert the sensor data into the model
+	        if (data instanceof SimpleIntegerSensorData) {
+	        	putIntegerSensorDataIntoModel((SimpleIntegerSensorData)data, model, resSensor);
+	        }
+	        else if (data instanceof GeographicSensorData) {
+	        	putGeographicalSensorDataIntoModel((GeographicSensorData)data, model, resSensor);
+	        }
+	        else {
+	        	log.error("Given SensorData not supported: "  + data.getSensorUriPath() + " (" + data.getClass() + ")");
+	        	return;
+	        }
+	        
+	        resourceStatus = new ResourceStatus(sensorURI, model, data.getLifetime());
+    	}
         
         // finds the corresponding web service for the sensor URI
         CoapSensorWebservice webservice = findWebservice(data.getSensorUriPath());
@@ -388,7 +436,7 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
         
         // send register request to CoAP Privacy Proxy
         try {
-            coapRegisterClient.sendRegisterRequest();
+            coapRegisterClient.sendRegisterRequestToCPP();
         } catch (UnknownHostException | URISyntaxException e) {
             log.error("Exception during sendRegisterRequest: " + e.getMessage());
         }

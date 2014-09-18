@@ -109,8 +109,9 @@ public abstract class Sensor {
 	
 	/**
 	 * Starts the sensor.
-	 * From this moment on it will publish sensor values all updateFrequency seconds.
-	 * The sensor will first sleep until actual time is minimum minTimeDifference after the last update time.
+	 * The sensor will first publish the initial value and 
+	 * then sleep until actual time is minimum minTimeDifference after the last update time.
+	 * From that moment on it will publish the values every updateFrequency seconds.
 	 * 
 	 * @param minTimeDifference  Maximum time difference in seconds after the last update time. 
 	 *                           If not needed set to updateFrequency.
@@ -120,7 +121,15 @@ public abstract class Sensor {
 	        log.error("scheduledExecutorService not initialized. Can't start Sensor");
 	    }
 	    
-	    // find a good start point
+	    // publish the initial value
+	    try{
+            getAndPublishSensorData();
+        }
+        catch(Exception e){
+            log.error("Exception while updating sensor value", e);
+        }
+	    
+	    // find a good start point for next publish
 	    long sleepTime = 0;
 	    long updateFrequencyMilli = updateFrequency * 1000;
 	    long maxTimeDifferenceMilli = maxTimeDifference * 1000;

@@ -12,7 +12,6 @@ import java.security.cert.X509Certificate;
 import java.security.cert.Certificate;
 
 import org.apache.commons.codec.binary.Base64;
-import org.jboss.netty.buffer.ChannelBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,18 +151,43 @@ public class CoapRegisterClient {
      * @throws URISyntaxException
      * @throws UnknownHostException
      */
-    public void sendRegisterRequest() throws URISyntaxException, UnknownHostException {
+    public void sendRegisterRequestToCPP() throws URISyntaxException, UnknownHostException {
+    	
+    	sendRegisterRequest(urlCPP, portCPP, urlPathRegistry, urlSSP.getBytes());
+    }
+    
+    /**
+     * Sends the registration request to the CoAP Privacy Proxy.
+     * The proxy will react with a registration as observer to the available webservices.
+     * @throws URISyntaxException
+     * @throws UnknownHostException
+     */
+    public void sendRegisterRequestToSSP() throws URISyntaxException, UnknownHostException {
+    	
+    	sendRegisterRequest(urlSSP, portSSP, urlPathRegistry, null);
+    }
+    
+    /**
+     * Sends the registration request to the CoAP Privacy Proxy.
+     * The proxy will react with a registration as observer to the available webservices.
+     * @throws URISyntaxException
+     * @throws UnknownHostException
+     */
+    private void sendRegisterRequest(String host, int port, String path, byte[] content) throws URISyntaxException, UnknownHostException {
         // Create CoAP request
-        URI webserviceURI = new URI ("coap", null, urlCPP, portCPP, urlPathRegistry, "", null);
+        URI webserviceURI = new URI ("coap", null, host, port, path, "", null);
         
         MessageType.Name messageType = MessageType.Name.CON;
         
         CoapRequest coapRequest = new CoapRequest(messageType, MessageCode.Name.POST, webserviceURI, false);
-        coapRequest.setContent(urlSSP.getBytes());
+        
+        if (content != null) {
+        	coapRequest.setContent(urlSSP.getBytes());
+        }
         
         // Set recipient (webservice host)
         InetSocketAddress recipient;
-        recipient = new InetSocketAddress(InetAddress.getByName(urlCPP), portCPP);
+        recipient = new InetSocketAddress(InetAddress.getByName(host), port);
         
         CoapClient coapClient = new CoapClient();
         
