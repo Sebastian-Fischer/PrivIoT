@@ -44,7 +44,7 @@ PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
 PREFIX itm: <http://example.org/itm-geo-test#>\
 \
 SELECT ?sensor ?point WHERE {\
- GRAPH ?sensor { \
+ GRAPH ?graph { \
   ?sensor itm:hasPosition ?position .\
   ?position geo:asWKT ?point . \
  }\
@@ -71,6 +71,7 @@ SELECT ?sensor ?point WHERE {\
            this.longitude = longitude;
            
            this.gmapsCircle = null;
+           
            this.isUpdated = true;
        }
 
@@ -95,9 +96,12 @@ SELECT ?sensor ?point WHERE {\
            this.updateInterval = updateInterval;
            this.secret = secret;
            this.formElement = formElement;
+           
            this.polygon = null;
+           this.lastPseudonymUri = "";
            
            this.hexColor = hexColor;
+           this.isUpdated = true;
        }
        
        /*
@@ -138,6 +142,12 @@ SELECT ?sensor ?point WHERE {\
         
         // Array of PrivateDevice. holds all known private devices
         var privateDevices = [];
+        
+        //create info window
+        var infoWindow = new google.maps.InfoWindow({
+                           content: "",
+                           maxWidth: 800
+                         });
         
         
 
@@ -186,6 +196,7 @@ SELECT ?sensor ?point WHERE {\
                 },
                 error: function(e){
                     console.log('Error during request' + e);
+                    deleteAllPoints();
                     mapReady = true;
                 }
             });
@@ -206,13 +217,17 @@ SELECT ?sensor ?point WHERE {\
             for (var i = 0; i < publicDevices.length; i++) {
                 publicDevices[i].isUpdated = false;
             }
+            // set all private devices to be outdated
+            for (var i = 0; i < privateDevices.length; i++) {
+                privateDevices[i].isUpdated = false;
+            }
         
             queryResult.results.bindings.forEach(function(binding){
                 if (binding.sensor === undefined ||  binding.point === undefined) {
                     return;
                 }
                 
-                var sensorUri = binding.sensor.value;
+                var sensorUriPseudonym = binding.sensor.value;
                 var pointVal = binding.point.value;
                 
                 var point = pointVal.replace(/POINT\(/g, "").replace(/\)/g, "");
@@ -222,15 +237,15 @@ SELECT ?sensor ?point WHERE {\
                 var latitude = parseFloat(coordinates[1]);
                 
                 // see if the device is known as PrivateDevice
-                var device = findPrivateDeviceByPseudonym(sensorUri);
+                var device = findPrivateDeviceByPseudonym(sensorUriPseudonym);
 
                 if (device == null) {
                     // see if the device is known as PublicDevice
-                    device = findPublicDevice(sensorUri);
+                    device = findPublicDevice(sensorUriPseudonym);
                     
                     if (device == null) {
                         // create a new PublicDevice
-                        device = new PublicDevice(sensorUri, 0.0, 0.0);
+                        device = new PublicDevice(sensorUriPseudonym, 0.0, 0.0);
                         publicDevices.push(device);
                     } 
                     
@@ -238,12 +253,14 @@ SELECT ?sensor ?point WHERE {\
                     drawPublicDevice(latitude, longitude, device);
                 }
                 else {
-                    // draws the private device
+                   device.lastPseudonymUri = sensorUriPseudonym;
+                
+                    // draws the private device. sets isUpdated to true.
                 	drawPrivateDevice(latitude, longitude, device);
                 }
             });
             
-            // remove outdated points from the map and delete the objects
+            // remove outdated publicDevice points from the map and delete the objects
 	        for (var i = 0; i < publicDevices.length; i++) {
 	            if (! publicDevices[i].isUpdated) {
 	                if (publicDevices[i].gmapsCircle != null) {
@@ -253,8 +270,36 @@ SELECT ?sensor ?point WHERE {\
 		            i--;
 		        }
 	        }
+	        // remove outdated privateDevices from the map
+	        for (var i = 0; i < privateDevices.length; i++) {
+	            if (! privateDevices[i].isUpdated) {
+	                if (privateDevices[i].polygon != null) {
+		            	privateDevices[i].polygon.setMap(null);
+		            }
+		        }
+	        }
             
             console.log("public device coordinates: " + publicDevices.length);
+        }
+        
+        /*
+         * Removes all points on the map.
+         * Public device objects will be deleted.
+         */
+        function deleteAllPoints() {
+        	for (var i = 0; i < publicDevices.length; i++) {
+                if (publicDevices[i].gmapsCircle != null) {
+	            	publicDevices[i].gmapsCircle.setMap(null);
+	            }
+	            publicDevices.splice(i, 1);
+	            i--;
+	        }
+	        
+	        for (var i = 0; i < privateDevices.length; i++) {
+                if (privateDevices[i].polygon != null) {
+	            	privateDevices[i].polygon.setMap(null);
+	            }
+	        }
         }
         
         /*
@@ -281,8 +326,16 @@ SELECT ?sensor ?point WHERE {\
 		        strokeWeight: 2,
 		        fillColor: hexColor,
 		        fillOpacity: 0.80,
-		        map: map
+		        map: map,
+		        clickable: true		        
 		    });
+		    
+		    google.maps.event.addListener(gmapsCircle, 'click', function(ev){
+		        console.log("click on " + device.pseudonymUri);
+			    infoWindow.setPosition(this.getCenter());
+			    infoWindow.setContent("<p>" + device.pseudonymUri + "</p>");
+			    infoWindow.open(map);
+			});
             
             // draw new points
             gmapsCircle.setMap(map);
@@ -323,10 +376,18 @@ SELECT ?sensor ?point WHERE {\
                 fillOpacity: 0.80
             });
             
+            google.maps.event.addListener(gmapsPolygon, 'click', function(ev){
+		        console.log("click on " + device.uri);
+			    infoWindow.setPosition(this.getPath().getAt(0));
+			    infoWindow.setContent("<p>" + device.uri + "<br/>(" + device.lastPseudonymUri + ")</p>");
+			    infoWindow.open(map);
+			});
+            
            removePrivateDevicePolygon(device);
             
             device.polygon = gmapsPolygon;
             device.polygon.setMap(map);
+            device.isUpdated = true;
         }
         
         /*
