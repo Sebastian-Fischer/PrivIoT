@@ -4,6 +4,7 @@
   <artifactId>PrivIoT-coap-webserver</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>PrivIoT-coap-webserver</name>
+  <packaging>jar</packaging>
   
   <repositories>
     <repository>
@@ -50,6 +51,25 @@
         <artifactId>commons-configuration</artifactId>
         <version>1.9</version>
       </dependency>
+      <!--  
+       <dependency>
+        <groupId>commons-lang</groupId>
+        <artifactId>commons-lang</artifactId>
+        <version>2.6</version>
+      </dependency>
+
+       <dependency>
+        <groupId>commons-logging</groupId>
+        <artifactId>commons-logging</artifactId>
+        <version>1.1.1</version>
+      </dependency>      
+
+       <dependency>
+        <groupId>commons-collections</groupId>
+        <artifactId>commons-collections</artifactId>
+        <version>3.2.1</version>
+      </dependency>-->
+       
   </dependencies>
   
   <build>
@@ -75,6 +95,33 @@
                     </execution>
                 </executions>
             </plugin>
+                  <plugin>
+			        <artifactId>maven-assembly-plugin</artifactId>
+			        <version>2.2-beta-5</version>
+			        <configuration>
+			          <descriptorRefs>
+			            <descriptorRef>jar-with-dependencies</descriptorRef>
+			          </descriptorRefs>
+			          <archive>
+			            <manifest>
+			              <mainClass>de.uniluebeck.itm.priviot.coapwebserver.CoapWebserverMain</mainClass>
+			            </manifest>
+			          </archive>
+			        </configuration>
+			        <executions>
+			          <execution>
+			            <id>make-assembly</id>
+			            <!-- this is used for inheritance merges -->
+			            <phase>package</phase>
+			            <!-- append to the packaging phase. -->
+			            <goals>
+			              <!--suppress MavenModelInspection -->
+			              <goal>single</goal>
+			              <!-- goals == mojos -->
+			            </goals>
+			          </execution>
+			        </executions>
+			      </plugin>
         </plugins>
     </build>
 </project>

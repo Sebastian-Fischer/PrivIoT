@@ -10,6 +10,19 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>ssp-luposdate</artifactId>
+  
+    <repositories>
+    <repository>
+        <id>itm-maven-repository-releases</id>
+        <name>ITM Maven Releases Repository</name>
+        <url>https://maven.itm.uni-luebeck.de/content/repositories/releases</url>
+    </repository>
+        <repository>
+        <id>itm-maven-repository-snapshots</id>
+        <name>ITM Maven Snapshots Repository</name>
+        <url>https://maven.itm.uni-luebeck.de/content/repositories/snapshots</url>
+    </repository>
+</repositories>
 
   <dependencies>
     <dependency>
