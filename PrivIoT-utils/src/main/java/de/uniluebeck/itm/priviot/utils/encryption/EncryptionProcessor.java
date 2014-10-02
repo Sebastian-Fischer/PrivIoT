@@ -1,4 +1,4 @@
-package de.uniluebeck.itm.priviot.utils;
+package de.uniluebeck.itm.priviot.utils.encryption;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -17,7 +17,6 @@ import org.apache.commons.codec.binary.Base64;
 
 import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
 import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
-import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.AsymmetricCipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.CiphererFactory;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.SymmetricCipherer;

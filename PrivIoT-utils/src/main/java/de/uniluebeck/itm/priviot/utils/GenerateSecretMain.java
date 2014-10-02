@@ -1,6 +1,7 @@
 package de.uniluebeck.itm.priviot.utils;
 
 import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationException;
+import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationProcessor;
 import de.uniluebeck.itm.priviot.utils.pseudonymization.Secret;
 
 public class GenerateSecretMain {

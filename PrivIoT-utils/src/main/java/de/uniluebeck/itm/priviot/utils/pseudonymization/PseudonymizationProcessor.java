@@ -1,11 +1,8 @@
-package de.uniluebeck.itm.priviot.utils;
+package de.uniluebeck.itm.priviot.utils.pseudonymization;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
-
-import de.uniluebeck.itm.priviot.utils.pseudonymization.HMacSha256PseudonymGenerator;
-import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationException;
 
 /**
  * Helper class that provides a method to generate a pseudonym.

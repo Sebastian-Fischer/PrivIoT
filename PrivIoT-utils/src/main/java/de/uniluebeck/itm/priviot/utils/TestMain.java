@@ -42,6 +42,7 @@ import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageUnmarshaller;
 import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionHelper;
+import de.uniluebeck.itm.priviot.utils.encryption.EncryptionProcessor;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.AsymmetricCipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.SymmetricCipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.asymmetric.elgamal.ElgamalCipherer;
@@ -49,6 +50,7 @@ import de.uniluebeck.itm.priviot.utils.encryption.cipher.asymmetric.rsa.RSACiphe
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.symmetric.aes.AESCipherer;
 import de.uniluebeck.itm.priviot.utils.pseudonymization.HMacSha256PseudonymGenerator;
 import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationException;
+import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationProcessor;
 
 
 public class TestMain {
