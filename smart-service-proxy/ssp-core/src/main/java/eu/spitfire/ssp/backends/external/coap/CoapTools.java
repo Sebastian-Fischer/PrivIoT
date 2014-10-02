@@ -12,11 +12,11 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
-import de.uniluebeck.itm.priviot.utils.EncryptionProcessor;
 import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
 import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageUnmarshaller;
 import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
+import de.uniluebeck.itm.priviot.utils.encryption.EncryptionProcessor;
 import eu.spitfire.ssp.utils.Language;
 
 import org.slf4j.Logger;
