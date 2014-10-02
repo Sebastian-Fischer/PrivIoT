@@ -43,10 +43,11 @@ import de.uniluebeck.itm.priviot.coapwebserver.sensor.SensorObserver;
 import de.uniluebeck.itm.priviot.coapwebserver.service.CoapRegisterClient;
 import de.uniluebeck.itm.priviot.coapwebserver.service.CoapRegisterClientObserver;
 import de.uniluebeck.itm.priviot.coapwebserver.service.CoapSensorWebservice;
-import de.uniluebeck.itm.priviot.utils.PseudonymizationProcessor;
+import de.uniluebeck.itm.priviot.utils.certificates.CertificateProcessor;
 import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.asymmetric.rsa.RSACipherer;
 import de.uniluebeck.itm.priviot.utils.encryption.cipher.symmetric.aes.AESCipherer;
+import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationProcessor;
 import de.uniluebeck.itm.priviot.utils.pseudonymization.Secret;
 import de.uniluebeck.itm.priviot.utils.pseudonymization.PseudonymizationException;
 
@@ -94,6 +95,12 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     
     /** Maximum changing in one random step of the sensor values langitude and latitude */
     private double maxChange;
+    
+    /** Path to the CA certificates for the verification of received certificates with certificate-chain */
+    private String certificatesPath;
+    
+    /** Path to the trusted top-level CA certificates for the verification of received certificates with certificate-chain */
+    private String trustedCertficatesPath;
     
     /** Listens to a local port. Web servers can be registered here. */
     private CoapServerApplication coapServerApplication;
@@ -143,6 +150,8 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
     	String urlCPP = config.getString("cpp.host");
     	int portCPP = config.getInt("cpp.port");
     	int aesBitStrength = config.getInt("encryption.aesstrength");
+    	certificatesPath = config.getString("encryption.certificatespath");
+    	trustedCertficatesPath = config.getString("encryption.trustedcertificatespath");
     	
     	if (!doEncrypt) {
     		log.info("Encryption is deactivated");
@@ -435,17 +444,23 @@ public class CoapWebserverController implements SensorObserver, CoapRegisterClie
      */
     @Override
     public void receivedCertificate(URI fromUri, X509Certificate certificate) {
-        log.info("received certificate for " + certificate.getSubjectX500Principal().getName());
+        String certificateOwner = CertificateProcessor.getCommonName(certificate.getSubjectX500Principal());
+        log.info("received certificate for " + certificateOwner);
         
-        try {
-        	certificate.checkValidity();
-        }
-        catch (CertificateExpiredException | CertificateNotYetValidException e) {
-        	log.error("Received certificate is not valid!");
+        if (! fromUri.getHost().equals(certificateOwner)) {
+            log.error("certificate owner doesn't equal the SSP host. Owner: " + certificateOwner + ", host: " + fromUri.getHost());
+            log.warn("DEBUG CODE: ignore not equal fault");
+            //return;
         }
         
-        //TODO: check certificate
-        log.warn("TODO: check the received certificate");
+        // check certificate
+        if (CertificateProcessor.verifyCertificate(certificate, certificatesPath, trustedCertficatesPath)) {
+            log.info("Received certificate is valid");
+        }
+        else {
+            log.error("Received certificate is not valid");
+            return;
+        }
         
         // save public key. Method is thread safe.
         keyDatabase.addEntry(new KeyDatabaseEntry(fromUri, certificate.getPublicKey()));

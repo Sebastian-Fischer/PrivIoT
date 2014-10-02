@@ -35,11 +35,11 @@ import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 import de.uniluebeck.itm.priviot.coapwebserver.data.KeyDatabase;
 import de.uniluebeck.itm.priviot.coapwebserver.data.KeyDatabaseEntry;
 import de.uniluebeck.itm.priviot.coapwebserver.data.ResourceStatus;
-import de.uniluebeck.itm.priviot.utils.EncryptionProcessor;
 import de.uniluebeck.itm.priviot.utils.data.EncryptionParameters;
 import de.uniluebeck.itm.priviot.utils.data.PrivacyDataPackageMarshaller;
 import de.uniluebeck.itm.priviot.utils.data.generated.PrivacyDataPackage;
 import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
+import de.uniluebeck.itm.priviot.utils.encryption.EncryptionProcessor;
 
 /**
  * Webservice over the COAP protocol.
