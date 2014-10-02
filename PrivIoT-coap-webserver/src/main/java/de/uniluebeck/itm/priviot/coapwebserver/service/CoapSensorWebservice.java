@@ -51,8 +51,11 @@ import de.uniluebeck.itm.priviot.utils.encryption.EncryptionException;
  * The COAPWebservice is observable for clients.
  */
 public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> {
-	public static long DEFAULT_CONTENT_FORMAT_ENCRYPT = ContentFormat.APP_XML;
-	public static long DEFAULT_CONTENT_FORMAT_NOENCRYPT = ContentFormat.APP_RDF_XML;
+    public static long DEFAULT_CONTENT_FORMAT_ENCRYPT = ContentFormat.APP_XML;
+    // use turtle, if possible. It has less overhead than rdf/xml
+	public static long DEFAULT_CONTENT_FORMAT_ENCRYPT_INNER = ContentFormat.APP_RDF_XML;//ContentFormat.APP_TURTLE; // alternative: APP_RDF_XML
+	public static String DEFAULT_CONTENT_FORMAT_ENCRYPT_INNER_LANGUAGE = "RDF/XML"; //"TURTLE"; // alternative: "RDF/XML"
+	public static long DEFAULT_CONTENT_FORMAT_NOENCRYPT = ContentFormat.APP_TURTLE;
 	
 	private Logger log = Logger.getLogger(this.getClass().getName());
 
@@ -186,14 +189,23 @@ public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> 
         	contentFormats.add(defaultContentFormat);
         }            
 
-        //Generate the payload of the response (depends on the accepted content formats, resp. the default
+        
         WrappedResourceStatus resourceStatus = null;
-        Iterator<Long> iterator = contentFormats.iterator();
         long contentFormat = defaultContentFormat;
-
-        while(resourceStatus == null && iterator.hasNext()){
-            contentFormat = iterator.next();
+        
+        // Generate the payload of the response (depends on the accepted content formats, resp. the default
+        if (contentFormats.contains(defaultContentFormat)) {
+            // use default if client accepts it
             resourceStatus = getWrappedResourceStatus(contentFormat);
+        }
+        if (resourceStatus == null) {
+            // use the first supported content format
+            Iterator<Long> iterator = contentFormats.iterator();
+    
+            while(resourceStatus == null && iterator.hasNext()){
+                contentFormat = iterator.next();
+                resourceStatus = getWrappedResourceStatus(contentFormat);
+            }
         }
 
         //generate the CoAP response
@@ -208,7 +220,6 @@ public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> 
             coapResponse.setContent(resourceStatus.getContent(), contentFormat);
             
             coapResponse.setEtag(resourceStatus.getEtag());
-            log.info("max age: " + resourceStatus.getMaxAge());
             coapResponse.setMaxAge(resourceStatus.getMaxAge());
 
             if(coapRequest.isObserveSet())
@@ -287,12 +298,9 @@ public class CoapSensorWebservice  extends ObservableWebservice<ResourceStatus> 
             Model rdfModel = getResourceStatus().getRdfModel();
             
             // content format of the encrypted content
-            String language = "N3";
-            long innerContentFormat = ContentFormat.APP_N3;
-            //String language = "RDF/XML";
-            //long innerContentFormat = ContentFormat.APP_RDF_XML;
-            //String language = "TURTLE";
-            //long innerContentFormat = ContentFormat.APP_TURTLE;
+            String language = DEFAULT_CONTENT_FORMAT_ENCRYPT_INNER_LANGUAGE;
+            long innerContentFormat = DEFAULT_CONTENT_FORMAT_ENCRYPT_INNER;
+            
             
             StringWriter stringWriter = new StringWriter();
             rdfModel.write(stringWriter, language);
