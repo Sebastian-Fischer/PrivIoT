@@ -42,7 +42,8 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI, Co
 
         this.coapClient = new CoapClientApplication("SSP CoAP Client");
         //fischer: Test code: changed port, so that SSP can be on same host as CoAP Webserver
-        this.coapServer = new CoapServerApplication(CoapServerApplication.DEFAULT_COAP_SERVER_PORT+2);
+        //this.coapServer = new CoapServerApplication(CoapServerApplication.DEFAULT_COAP_SERVER_PORT+2);
+        this.coapServer = new CoapServerApplication(CoapServerApplication.DEFAULT_COAP_SERVER_PORT);
 
         this.registry = new CoapRegistry(this);
         this.accessor = new CoapAccessor(this);
